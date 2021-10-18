@@ -1,14 +1,33 @@
 {
-  "name": "smart-textarea",
+  "name": "smart-textarea-maa",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "dependencies": {
     "abort-controller": "^3.0.0",
-    "prop-types": "^15.7.2",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2",
     "react-tether": "^2.0.8"
   },
+  "author": {
+    "name": "maa105",
+    "email": "maa105.aub@gmail.com"
+  },
+  "repository": {
+    "url": "https://github.com/maa105/smart-textarea"
+  },
+  "homepage": "https://github.com/maa105/smart-textarea",
+  "description": "react textarea component that supports cofigurable tagging/mentions",
+  "keywords": [
+    "mention",
+    "mentions",
+    "tagging",
+    "tags",
+    "textarea",
+    "react",
+    "markable",
+    "marker",
+    "markers",
+    "component"
+  ],
+  "displayName": "Smart TextArea",
   "scripts": {
     "start": "react-scripts start",
     "build": "cross-env PUBLIC_URL=. react-scripts build",
@@ -21,7 +40,7 @@
     "fix:style": "npx stylelint ./src/ --fix",
     "start:docs": "start-storybook -p 6006 -s public",
     "build:docs": "build-storybook -s public",
-    "prepare": "node ./prepare.js && husky install"
+    "prepare": "husky install"
   },
   "eslintConfig": {
     "extends": "react-app"
@@ -83,6 +102,9 @@
     "npm-run-all": "^4.1.5",
     "postcss-preset-env": "^6.7.0",
     "prettier": "^2.3.2",
+    "prop-types": "^15.7.2",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "react-scripts": "^4.0.3",
     "recursive-copy": "^2.0.13",
     "rimraf": "^3.0.2",
@@ -97,5 +119,10 @@
     "stylelint": "^13.13.1",
     "stylelint-config-standard": "^22.0.0",
     "stylelint-order": "^4.1.0"
+  },
+  "peerDependencies": {
+    "react": ">=16.8.0",
+    "react-dom": ">=16.8.0",
+    "prop-types": "^15.7.2"
   }
 }

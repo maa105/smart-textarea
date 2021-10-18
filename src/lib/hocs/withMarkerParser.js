@@ -364,7 +364,6 @@ const withMarkerParser = ({
           initMarkers,
           onInput: onInputFromParent,
           onChange: onChangeFromParent,
-          onSelectionChange: onSelectionChangeFromParent,
           onMarkersChange,
           onInEditMarkerChange,
           imperativeRef,
@@ -554,12 +553,26 @@ const withMarkerParser = ({
             return true;
           }
 
-          let selection = mutableRef.current.selection;
+          const newSelectionEnd = textarea.selectionEnd;
+          const prevSelectionEnd =
+            prevValue.length - (newValue.length - newSelectionEnd);
+          const minSelectionEnd = Math.min(prevSelectionEnd, newSelectionEnd);
 
-          const blockResult = blockMarkerUpdates({
-            selection,
-            lastKey: mutableRef.current.lastKeyDown,
+          let selectionStart;
+          for (
+            selectionStart = 0;
+            selectionStart < minSelectionEnd &&
+            prevValue[selectionStart] === newValue[selectionStart];
+            selectionStart++
+          );
+
+          let selection = getMarkerSelections({
+            markers,
+            selectionStart,
+            selectionEnd: prevSelectionEnd,
           });
+
+          const blockResult = blockMarkerUpdates(selection);
 
           if (blockResult.block) {
             textarea.value = prevValue;
@@ -569,40 +582,9 @@ const withMarkerParser = ({
             return false;
           }
 
-          let {selectionStart, selectionEnd} = selection;
-
           let insertedText = '';
 
-          const hadRangeSelection = selectionStart !== selectionEnd;
-          const isSingleDelete =
-            !hadRangeSelection && mutableRef.current.lastKeyDown === 'Delete';
-          const isSingleBackspace =
-            !hadRangeSelection &&
-            mutableRef.current.lastKeyDown === 'Backspace';
-          if (isSingleDelete || isSingleBackspace) {
-            const deletedCount = prevValue.length - newValue.length;
-            if (isSingleDelete) {
-              selectionEnd = selectionStart + deletedCount;
-            } else {
-              selectionStart -= deletedCount;
-            }
-            const newSelection = getMarkerSelections({
-              markers,
-              selectionStart,
-              selectionEnd,
-            });
-            selection = {
-              selectionStart,
-              selectionEnd,
-              inEditMarkerIndex: getIneditMarkerIndex(newSelection),
-              ...newSelection,
-            };
-          } else {
-            insertedText = newValue.substring(
-              selectionStart,
-              textarea.selectionEnd
-            );
-          }
+          insertedText = newValue.substring(selectionStart, newSelectionEnd);
 
           const {
             prevMarkerIndex,
@@ -616,7 +598,7 @@ const withMarkerParser = ({
             markers,
             prevValue,
             selectionStart,
-            selectionEnd,
+            selectionEnd: prevSelectionEnd,
             insertedText,
 
             prevMarkerIndex,
@@ -638,7 +620,7 @@ const withMarkerParser = ({
 
           const oldInEditMarkerIndex = selection.inEditMarkerIndex;
 
-          const newCursorPosition = textarea.selectionEnd; // might need to be refined!!!
+          const newCursorPosition = newSelectionEnd; // might need to be refined!!!
           textarea.selectionStart = newCursorPosition; // forcing it for now if it isnt "should" always be though
 
           selection = {
@@ -709,17 +691,6 @@ const withMarkerParser = ({
 
         useEffect(() => {
           const textarea = innerRef.current;
-          const onKeyDown = e => {
-            mutableRef.current.lastKeyDown = e.key;
-          };
-          textarea.addEventListener('keydown', onKeyDown);
-          return () => {
-            textarea.removeEventListener('keydown', onKeyDown);
-          };
-        }, []);
-
-        useEffect(() => {
-          const textarea = innerRef.current;
           const onMarkersChange = mutableRef.current.onMarkersChange;
           onMarkersChange &&
             onMarkersChange({
@@ -732,31 +703,6 @@ const withMarkerParser = ({
             });
         }, []);
 
-        const onSelectionChange = e => {
-          const newInEditMarkerIndex = getIneditMarkerIndex(e);
-          const newInEditMarker = markers[newInEditMarkerIndex];
-          if (newInEditMarker?.uuid !== mutableRef.current.inEditMarker?.uuid) {
-            const onInEditMarkerChangeEventArgs = {
-              target: e.target,
-              value,
-              oldValue: value,
-              markers,
-              oldMarkers: markers,
-              oldInEditMarker: mutableRef.current.inEditMarker,
-              inEditMarker: newInEditMarker,
-            };
-            mutableRef.current.inEditMarker = newInEditMarker;
-            onInEditMarkerChange &&
-              onInEditMarkerChange(onInEditMarkerChangeEventArgs);
-          }
-          mutableRef.current.selection = {
-            ...e,
-            inEditMarkerIndex: newInEditMarkerIndex,
-          };
-          onSelectionChangeFromParent &&
-            onSelectionChangeFromParent(mutableRef.current.selection);
-        };
-
         return (
           <TextArea
             {...props}
@@ -766,7 +712,6 @@ const withMarkerParser = ({
             markers={markers}
             onInput={onInput}
             onChange={onChange}
-            onSelectionChange={onSelectionChange}
           />
         );
       }

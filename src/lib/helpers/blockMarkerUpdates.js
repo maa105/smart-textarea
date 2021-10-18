@@ -1,37 +1,35 @@
-export const blockMarkerUpdates = ({selection, lastKey}) => {
+export const blockMarkerUpdates = selection => {
   const {
     markers,
-    markerWithStartTouchedIndex,
-    markerWithEndTouchedIndex,
-    selectionStart,
-    selectionEnd,
+    midSelectedMarkerIndex,
+    endSelectedMarkerIndex,
+    startSelectedMarkerIndex,
   } = selection;
 
-  if (selectionStart !== selectionEnd) {
+  const midSelectedMarker = markers[midSelectedMarkerIndex];
+  const endSelectedMarker = markers[endSelectedMarkerIndex];
+  const startSelectedMarker = markers[startSelectedMarkerIndex];
+
+  if (midSelectedMarker && midSelectedMarker.isLocked) {
     return {
-      block: false,
+      block: true,
+      selectionStart: midSelectedMarker.start,
+      selectionEnd: midSelectedMarker.end,
     };
   }
-
-  const markerWithStartTouched = markers[markerWithStartTouchedIndex];
-  const markerWithEndTouched = markers[markerWithEndTouchedIndex];
-
-  if (lastKey === 'Backspace') {
-    if (markerWithEndTouched && markerWithEndTouched.isLocked) {
-      return {
-        block: true,
-        selectionStart: markerWithEndTouched.start,
-        selectionEnd: markerWithEndTouched.end,
-      };
-    }
-  } else if (lastKey === 'Delete') {
-    if (markerWithStartTouched && markerWithStartTouched.isLocked) {
-      return {
-        block: true,
-        selectionStart: markerWithStartTouched.start,
-        selectionEnd: markerWithStartTouched.end,
-      };
-    }
+  if (endSelectedMarker && endSelectedMarker.isLocked) {
+    return {
+      block: true,
+      selectionStart: endSelectedMarker.start,
+      selectionEnd: endSelectedMarker.end,
+    };
+  }
+  if (startSelectedMarker && startSelectedMarker.isLocked) {
+    return {
+      block: true,
+      selectionStart: startSelectedMarker.start,
+      selectionEnd: startSelectedMarker.end,
+    };
   }
   return {
     block: false,

@@ -3,12 +3,9 @@ import mergeRefs from '../helpers/mergeRefs';
 
 export const getMarkerSelections = ({
   markers,
-  selectionStart,
-  selectionEnd,
+  selectionStart: start,
+  selectionEnd: end,
 }) => {
-  const start = selectionStart;
-  const end = selectionEnd;
-
   const selectedMarkersRange = {startIndex: -1, endIndex: -1};
   let startSelectedMarkerIndex = -1;
   let endSelectedMarkerIndex = -1;
