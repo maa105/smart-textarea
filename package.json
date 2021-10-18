@@ -13,7 +13,6 @@
   "repository": {
     "url": "https://github.com/maa105/smart-textarea"
   },
-  "homepage": "https://github.com/maa105/smart-textarea",
   "description": "react textarea component that supports cofigurable tagging/mentions",
   "keywords": [
     "mention",

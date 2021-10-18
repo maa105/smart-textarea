@@ -428,10 +428,12 @@ const withMarkerParser = ({
                 let newMarker = null;
 
                 if (update) {
-                  const {textValue, ...markerUpdates} = update;
+                  const {textValue, appendText = '', ...markerUpdates} = update;
                   const hasNewText = textValue != null;
                   const lengthChange = hasNewText
-                    ? textValue.length - (marker.end - marker.start)
+                    ? textValue.length +
+                      appendText.length -
+                      (marker.end - marker.start)
                     : 0;
 
                   newMarkers = [...markers.slice(0, i)];
@@ -460,6 +462,7 @@ const withMarkerParser = ({
                     newValue = [
                       value.substring(0, marker.start),
                       textValue,
+                      appendText,
                       value.substring(marker.end),
                     ].join('');
 
@@ -574,17 +577,29 @@ const withMarkerParser = ({
 
           const blockResult = blockMarkerUpdates(selection);
 
+          if (mutableRef.current.blockTimer) {
+            clearTimeout(mutableRef.current.blockTimer);
+            mutableRef.current.blockTimer = null;
+          }
           if (blockResult.block) {
-            textarea.value = prevValue;
             textarea.selectionStart = blockResult.selectionStart;
             textarea.selectionEnd = blockResult.selectionEnd;
+            mutableRef.current.blockTimer = setTimeout(() => {
+              mutableRef.current.blockTimer = null;
+              try {
+                textarea.selectionStart = blockResult.selectionStart;
+                textarea.selectionEnd = blockResult.selectionEnd;
+                // eslint-disable-next-line no-empty
+              } catch (err) {}
+            });
             e.preventDefault();
             return false;
           }
 
-          let insertedText = '';
-
-          insertedText = newValue.substring(selectionStart, newSelectionEnd);
+          const insertedText = newValue.substring(
+            selectionStart,
+            newSelectionEnd
+          );
 
           const {
             prevMarkerIndex,
