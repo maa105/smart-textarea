@@ -1,44 +1,87 @@
-[![Build Status](https://travis-ci.com/morewings/cra-template-npm-library.svg?branch=master)](https://travis-ci.com/morewings/cra-template-npm-library)
-[![Dependabot Status](https://api.dependabot.com/badges/status?host=github&repo=morewings/cra-template-npm-library)](https://dependabot.com)
-[![dependencies Status](https://david-dm.org/morewings/cra-template-npm-library/status.svg)](https://david-dm.org/morewings/cra-template-npm-library)
-[![Netlify Status](https://api.netlify.com/api/v1/badges/7448a6f6-8be5-4d26-b886-f59db21ebb4e/deploy-status)](https://app.netlify.com/sites/cra-template-npm-library/deploys)
-[![npm version](https://badge.fury.io/js/cra-template-npm-library.svg)](https://www.npmjs.com/package/cra-template-npm-library)
-[![npm](https://img.shields.io/npm/dm/cra-template-npm-library)](https://www.npmjs.com/package/cra-template-npm-library)
+# Smart TextArea
 
-# NPM library Create React App template
+A configurable markable react textarea component that supports multiple anchor types (people, things, places)
 
-[Create React App](https://github.com/facebook/create-react-app) (CRA) template to build and publish NPM libraries with **rollup**, **eslint** and **stylelint** configurations. See [full documentation](https://cra-template-npm-library.netlify.com/).
+[Demo](https://maa105.github.io/smart-textarea/)
 
-## Usage
+e.g.
 
-```shell script
-npx create-react-app %PROJECT_NAME% --template npm-library
-``` 
-Or
-```shell script
-yarn create react-app %PROJECT_NAME% --template npm-library
+```js
+const SmartTextArea = withSmartTextArea({
+  version: 0,
+  anchors: [
+    {
+      anchorChar: '@',
+      type: 'person',
+      parts: [
+        {
+          key: 'name',
+        },
+        // you can have multiple parts (to doc)
+      ],
+      searchOptions: {
+        ResultItemComponent: PersonSearchResultItem,
+        NoResultItemComponent,
+        resultItemComponentOnSelect: ({selectedItem: person}) => ({
+          textValue: person.name, // when an item is selected the text of it will change to what you specify by textValue
+          markerData: {
+            // marker data to help identify entity later
+            id: person.id,
+          },
+        }),
+        loader: ({name}, signal) => personSearch(name, signal), // first param is parsed from parts, second param is signal to cancel seach
+        getCacheKey: ({name}) => name?.trim().toLowerCase() || null, // first param is parsed from parts
+        debounceDuration: 350,
+      },
+      detailsOptions: {
+        Component: PersonDetails,
+        NotFoundComponent,
+        loader: ({id}, signal) => personDetails(id, signal), // first param is markerData specified above
+        getCacheKey: ({id}) => id,
+      },
+    },
+    {
+      anchorChar: '#',
+      type: 'thing',
+      parts: [
+        {
+          key: 'name',
+        },
+      ],
+      searchOptions: {
+        ResultsComponent: (
+          {ResultListComponent, ...props} // gives flexibility to wrap ResultsList or get away with it completely
+        ) => (
+          <p>
+            <h5>Found the following things:</h5>
+            <ResultListComponent {...props} /> {/*will display a selectable list of the results using ResultItemComponent*/}
+          </p>
+        ),
+        ResultItemComponent: ThingSearchResultItem,
+        resultItemComponentOnSelect: ({selectedItem: thing}) => ({
+          textValue: thing.name,
+          markerData: {
+            id: thing.id,
+          },
+        }),
+        loader: ({name}, signal) => thingSearch(name, signal),
+        getCacheKey: ({name}) => name?.trim().toLowerCase() || null,
+        debounceDuration: 350,
+      },
+      detailsOptions: {
+        Component: ThingDetails,
+        loader: ({id}, signal) => thingDetails(id, signal),
+        getCacheKey: ({id}) => id,
+      },
+    },
+  ],
+  classNameGetters: {
+    front: ({ isFirstLine, isLastLine, isTipVisible, isInEdit, marker }) => 'front-label-class',
+    back: ({ isFirstLine, isLastLine, isTipVisible, isInEdit, marker }) => 'back-label-class',
+    tip: ({ marker }) => 'marker-class',
+  }
+  ErrorComponent,
+  LoaderComponent,
+  hideTipOnEscape: true,
+});
 ```
-
-Then
-
-```shell script
-cd %PROJECT_NAME%
-yarn start
-```
-
-## Features
-
-- Handles all modern JS features.
-- Bundles `commonjs` and `es` module formats.
-- [Husky](https://github.com/typicode/husky) for git hooks.
-- [Eslint](https://eslint.org/) and [stylelint](https://stylelint.io/).
-- [Rollup](https://rollupjs.org/guide/en/) for bundling.
-- [Babel](https://babeljs.io/) for transpiling.
-- [Jest](https://jestjs.io/) and [react-testing-library](https://testing-library.com/docs/react-testing-library/intro) for testing.
-- Supports CSS modules, SASS/SCSS, Less and PostCSS.
-- [Storybook](https://storybook.js.org/) for documentation and demo.
-- And [much more](https://cra-template-npm-library.netlify.com/).
-
-## Contributors
-
-@morewings, @sky0matic

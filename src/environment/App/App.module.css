@@ -1,6 +1,6 @@
-.container {
-  display: flex;
-  justify-content: center;
-  margin: 0 auto;
-  width: 960px;
+html {
+  font-family: Arial, Helvetica, sans-serif;
+}
+.inEditMarker {
+  background-color: lightyellow;
 }

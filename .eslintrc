@@ -1,9 +1,5 @@
 {
-  "extends": [
-    "airbnb",
-    "react-app",
-    "prettier"
-  ],
+  "extends": ["airbnb", "react-app", "prettier"],
   "rules": {
     // Allow jsx tags inside .js files.
     "react/jsx-filename-extension": [1, {"extensions": [".js", ".jsx"]}],
@@ -36,19 +32,6 @@
       {
         "allowedObjects": ["_", "R"]
       }
-    ],
-    // Warning when mutating operators (++, --, etc) are used, object = {} also. `Component.propTypes`, `Component.defaultProps`, common.js (`module.exports`) and `ref.current` are ok.
-    "fp/no-mutation": [
-      "warn",
-      {
-        "commonjs": true,
-        "allowThis": true,
-        "exceptions": [
-          {"property": "propTypes"},
-          {"property": "defaultProps"},
-          {"property": "current"}
-        ]
-      }
     ]
   },
   "plugins": ["prettier", "fp"],
@@ -75,9 +58,19 @@
       }
     },
     {
-      "files": ["**/*.spec.js"],
+      "files": ["**/*.js"],
       "rules": {
-        "react/prop-types": "off"
+        "react/prop-types": "off",
+        "no-plusplus": "off",
+        "prefer-destructuring": "off",
+        "fp/no-mutating-methods": "off",
+        "no-nested-ternary": "off",
+        "no-shadow": "off",
+        "no-param-reassign": "off",
+        "no-multi-assign": "off",
+        "fp/no-delete": "off",
+        "no-console": ["warn", {"allow": ["warn", "error"]}],
+        "jsx-a11y/click-events-have-key-events": "off"
       }
     },
     {
@@ -90,9 +83,7 @@
       }
     },
     {
-      "files": [
-        "**/*.stories.*"
-      ],
+      "files": ["**/*.stories.*"],
       "rules": {
         "import/no-anonymous-default-export": "off"
       }

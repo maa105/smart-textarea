@@ -1,1 +1,4 @@
-export {default as Counter} from './Counter';
+import './SmartTextArea.css';
+import withSmartTextArea from './hocs/withSmartTextArea';
+
+export {withSmartTextArea};

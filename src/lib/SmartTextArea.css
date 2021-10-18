@@ -1,0 +1,105 @@
+.textarea-container,
+.textarea-with-resize-container {
+  display: inline-block;
+  position: relative;
+  overflow: hidden;
+  line-height: 0;
+}
+
+.textarea-with-resize-container > iframe {
+  position: absolute;
+  background-color: transparent;
+  visibility: hidden;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.textarea-back {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+}
+
+.textarea-front {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+}
+
+.textarea-container textarea {
+  background-color: transparent;
+  position: relative;
+}
+
+.textarea-back > *,
+.textarea-front > * {
+  position: absolute;
+}
+
+.textarea-back-label {
+  background-color: rgb(230, 230, 230);
+}
+
+.textarea-back-label.textarea-back-label-first-line {
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+
+.textarea-back-label.textarea-back-label-last-line {
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+
+.textarea-back-label.textarea-back-label-inedit,
+.textarea-back-label.textarea-back-label-inedit.textarea-back-label-tip-shown {
+  background-color: rgb(164, 255, 183);
+}
+
+.textarea-back-label.textarea-back-label-tip-shown {
+  background-color: rgb(164, 183, 255);
+}
+
+.textarea-front-label {
+  background-color: transparent;
+  cursor: pointer;
+}
+
+.textarea-tip-container {
+  background-color: white;
+  border: 1px solid lightgray;
+  border-radius: 5px;
+  padding: 3px 12px;
+  max-width: 75vw;
+  max-height: 75vh;
+  overflow: auto;
+}
+
+.search-results-list {
+  list-style: none;
+  padding: 0;
+}
+
+.search-results-list a {
+  display: block;
+  color: black;
+}
+
+.search-results-list a:hover {
+  cursor: pointer;
+  background-color: lightgray;
+}
+
+.search-results-list a.search-results-list-item--focused {
+  background-color: lightgray;
+}

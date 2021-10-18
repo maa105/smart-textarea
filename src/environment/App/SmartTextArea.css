@@ -1,0 +1,31 @@
+.thing-item {
+  padding: 2px 5px 3px 2px;
+}
+
+.person-item {
+  display: flex;
+  align-items: center;
+  padding: 2px 5px 3px 2px;
+}
+
+.person-item img {
+  max-height: 25px;
+  border-radius: 50%;
+}
+
+.person-details-container img {
+  display: block;
+  margin: auto;
+  width: 100%;
+  max-width: 150px;
+  border-radius: 50%;
+}
+
+.smart-text-area {
+  width: 500px;
+  height: 400px;
+}
+
+.textarea-back-thing-label {
+  background-color: rgb(255, 208, 122);
+}
