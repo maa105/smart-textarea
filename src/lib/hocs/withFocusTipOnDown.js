@@ -48,13 +48,23 @@ const withFocusTipOnDown = TextArea =>
         return () => textarea.removeEventListener('keydow', listener);
       }, []);
 
+      const onInEditMarkerChange = e => {
+        const inEditMarker = e.markers[e.inEditMarkerIndex];
+        const prevInEditMarker = mutableRef.current.inEditMarker;
+        if (prevInEditMarker && prevInEditMarker.uuid !== inEditMarker?.uuid) {
+          mutableRef.current.updateTipVisibility({
+            visibile: false,
+            type: 'keyboard',
+          });
+        }
+        mutableRef.current.inEditMarker = inEditMarker;
+        onInEditMarkerChangeFromParent && onInEditMarkerChangeFromParent(e);
+      };
+
       return (
         <TextArea
           ref={mergeRefs(ref, innerRef)}
-          onInEditMarkerChange={e => {
-            mutableRef.current.inEditMarker = e.markers[e.inEditMarkerIndex];
-            onInEditMarkerChangeFromParent && onInEditMarkerChangeFromParent(e);
-          }}
+          onInEditMarkerChange={onInEditMarkerChange}
           visibleTipsData={visibleTipsData}
           updateTipVisibility={updateTipVisibility}
           {...restProps}
