@@ -70,7 +70,8 @@
         "no-multi-assign": "off",
         "fp/no-delete": "off",
         "no-console": ["warn", {"allow": ["warn", "error"]}],
-        "jsx-a11y/click-events-have-key-events": "off"
+        "jsx-a11y/click-events-have-key-events": "off",
+        "no-continue": "off"
       }
     },
     {

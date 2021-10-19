@@ -1,6 +1,20 @@
 import React, {forwardRef, useEffect, useRef} from 'react';
 import mergeRefs from '../helpers/mergeRefs';
 
+const getInEditMarkerIndex = selection =>
+  selection.midSelectedMarkerIndex >= 0
+    ? selection.midSelectedMarkerIndex
+    : selection.endSelectedMarkerIndex >= 0
+    ? selection.endSelectedMarkerIndex
+    : selection.markerWithEndTouchedIndex >= 0
+    ? selection.markerWithEndTouchedIndex
+    : -1;
+const withInEditMarkerIndex = selection => {
+  const inEditMarkerIndex = getInEditMarkerIndex(selection);
+  selection.inEditMarkerIndex = inEditMarkerIndex;
+  return selection;
+};
+
 export const getMarkerSelections = ({
   markers,
   selectionStart: start,
@@ -16,18 +30,19 @@ export const getMarkerSelections = ({
   let nextMarkerIndex;
   let i = 0;
 
-  const getReturn = () => ({
-    markers,
-    selectedMarkersRange,
-    startSelectedMarkerIndex,
-    endSelectedMarkerIndex,
-    midSelectedMarkerIndex,
-    markerWithStartTouchedIndex,
-    markerWithEndTouchedIndex,
-    prevMarkerIndex,
-    nextMarkerIndex:
-      (nextMarkerIndex ?? -1) >= markers.length ? -1 : nextMarkerIndex ?? -1,
-  });
+  const getReturn = () =>
+    withInEditMarkerIndex({
+      markers,
+      selectedMarkersRange,
+      startSelectedMarkerIndex,
+      endSelectedMarkerIndex,
+      midSelectedMarkerIndex,
+      markerWithStartTouchedIndex,
+      markerWithEndTouchedIndex,
+      prevMarkerIndex,
+      nextMarkerIndex:
+        (nextMarkerIndex ?? -1) >= markers.length ? -1 : nextMarkerIndex ?? -1,
+    });
 
   for (; i < markers.length && markers[i].end < start; i++);
 
@@ -125,7 +140,13 @@ export const getMarkerSelections = ({
 const withMarkerSelectionBlocker = (TextArea = 'textarea') =>
   forwardRef(
     (
-      {onSelectionChange: onSelectionChangeFromParent, markers, ...restProps},
+      {
+        onSelectionChange: onSelectionChangeFromParent,
+        value,
+        markers,
+        onInEditMarkerChange,
+        ...restProps
+      },
       ref
     ) => {
       const mutableRef = useRef({});
@@ -146,13 +167,13 @@ const withMarkerSelectionBlocker = (TextArea = 'textarea') =>
 
         const prevSelection = mutableRef.current.selection;
         const startCursorMoved =
-          !prevSelection || prevSelection?.start === selectionStart
+          !prevSelection || prevSelection?.selectionStart === selectionStart
             ? 0
-            : selectionStart - prevSelection.start;
+            : selectionStart - prevSelection.selectionStart;
         const endCursorMoved =
-          !prevSelection || prevSelection?.end === selectionEnd
+          !prevSelection || prevSelection?.selectionEnd === selectionEnd
             ? 0
-            : selectionEnd - prevSelection.end;
+            : selectionEnd - prevSelection.selectionEnd;
 
         let {
           midSelectedMarkerIndex,
@@ -235,26 +256,39 @@ const withMarkerSelectionBlocker = (TextArea = 'textarea') =>
         if (selectionStart !== start) {
           textarea.selectionStart = start;
         }
-        if (!mutableRef.current.pointerDown) {
-          mutableRef.current.selection = {start, end};
+
+        const newSelection = withInEditMarkerIndex({
+          markers,
+
+          selectionStart: start,
+          selectionEnd: end,
+
+          prevMarkerIndex,
+          midSelectedMarkerIndex,
+          markerWithEndTouchedIndex,
+          endSelectedMarkerIndex,
+          selectedMarkersRange,
+          startSelectedMarkerIndex,
+          markerWithStartTouchedIndex,
+          nextMarkerIndex,
+        });
+
+        if (!mutableRef.current.pointerDown || !prevSelection) {
+          mutableRef.current.selection = newSelection;
+          onInEditMarkerChange &&
+            onInEditMarkerChange({
+              target: textarea,
+              value,
+              markers,
+              inEditMarkerIndex: newSelection.inEditMarkerIndex,
+              oldInEditMarkerIndex: prevSelection?.inEditMarkerIndex,
+            });
         }
 
         onSelectionChangeFromParent &&
           onSelectionChangeFromParent({
             ...e,
-            markers,
-
-            selectionStart: start,
-            selectionEnd: end,
-
-            prevMarkerIndex,
-            midSelectedMarkerIndex,
-            markerWithEndTouchedIndex,
-            endSelectedMarkerIndex,
-            selectedMarkersRange,
-            startSelectedMarkerIndex,
-            markerWithStartTouchedIndex,
-            nextMarkerIndex,
+            ...newSelection,
           });
       };
 
@@ -278,6 +312,7 @@ const withMarkerSelectionBlocker = (TextArea = 'textarea') =>
         <TextArea
           ref={mergeRefs('withSelectionBlocker', ref, innerRef)}
           {...restProps}
+          value={value}
           markers={markers}
           onSelectionChange={onSelectionChange}
         />

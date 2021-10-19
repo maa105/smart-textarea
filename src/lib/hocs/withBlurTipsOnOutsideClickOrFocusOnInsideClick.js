@@ -1,5 +1,11 @@
 import React, {forwardRef, useEffect, useRef} from 'react';
 import mergeRefs from '../helpers/mergeRefs';
+import {
+  DEFAULT_HIDE,
+  SKIP_HIDE,
+  TOGGLE_VISIBLITY,
+  TOTAL_HIDE,
+} from './withTips';
 
 const withBlurTipsOnOutsideClickOrFocusOnInsideClick = TextArea =>
   forwardRef(({id, updateTipVisibility, ...restProps}, ref) => {
@@ -9,43 +15,55 @@ const withBlurTipsOnOutsideClickOrFocusOnInsideClick = TextArea =>
 
     useEffect(() => {
       const mutable = mutableRef.current;
-      const listener = e => {
+      const clickListener = e => {
         let elem = e.target;
-        let inMe = false;
+        let onTextArea = false;
+        let onTip = false;
+        let onMarker = false;
         while (elem) {
-          if (
-            elem.id === id ||
-            elem.dataset?.tipForTextarea === id ||
-            elem.dataset?.tipAnchorForTextarea === id
-          ) {
-            inMe = true;
+          onTextArea = elem.id === id;
+          onTip = elem.dataset?.tipForTextarea === id;
+          onMarker = elem.dataset?.tipAnchorForTextarea === id;
+          if (onTextArea || onTip || onMarker) {
             break;
           }
           elem = elem.parentNode;
         }
-        if (!inMe) {
+        if (!onTextArea && !onTip && !onMarker) {
           mutable.updateTipVisibility({
             visibile: false,
           });
           e.preventDefault();
         } else {
+          const anchorMarkerUuid = onMarker && elem.dataset.tipAnchorForMarker;
           mutable.updateTipVisibility({
             visibile: false,
             type: 'clickOnTip',
+            hideAction: ({markerUuid, visiblityStack}) => {
+              if (markerUuid !== anchorMarkerUuid) {
+                return DEFAULT_HIDE;
+              }
+              return SKIP_HIDE;
+            },
           });
-          const markerUuid =
-            elem.dataset?.tipForMarker || elem.dataset?.tipAnchorForMarker;
-          if (markerUuid) {
+          if (onMarker) {
             mutable.updateTipVisibility({
-              marker: markerUuid,
+              marker: anchorMarkerUuid,
+              visibile: TOGGLE_VISIBLITY,
+              type: 'clickOnTip',
+              hideAction: () => TOTAL_HIDE,
+            });
+          } else if (onTip) {
+            mutable.updateTipVisibility({
+              marker: elem.dataset.tipForMarker,
               visibile: true,
               type: 'clickOnTip',
             });
           }
         }
       };
-      document.addEventListener('click', listener);
-      return () => document.removeEventListener('click', listener);
+      document.addEventListener('click', clickListener);
+      return () => document.removeEventListener('click', clickListener);
     }, [id]);
 
     return (

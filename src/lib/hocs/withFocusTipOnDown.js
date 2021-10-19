@@ -52,7 +52,7 @@ const withFocusTipOnDown = TextArea =>
         <TextArea
           ref={mergeRefs(ref, innerRef)}
           onInEditMarkerChange={e => {
-            mutableRef.current.inEditMarker = e.inEditMarker;
+            mutableRef.current.inEditMarker = e.markers[e.inEditMarkerIndex];
             onInEditMarkerChangeFromParent && onInEditMarkerChangeFromParent(e);
           }}
           visibleTipsData={visibleTipsData}

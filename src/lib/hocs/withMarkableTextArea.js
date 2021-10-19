@@ -297,9 +297,9 @@ const FrontLabelLines = ({
       });
     }
   };
-  const pointerEnter = labelLineIndex => {
+  const mouseEnter = labelLineIndex => {
     clearTimeout(mutableRef.current.timer);
-    showTip('pointerOver', labelLineIndex);
+    showTip('mouseOver', labelLineIndex);
   };
 
   const hideTip = type => {
@@ -313,9 +313,9 @@ const FrontLabelLines = ({
       });
     }
   };
-  const pointerLeave = () => {
+  const mouseLeave = () => {
     mutableRef.current.timer = setTimeout(() => {
-      hideTip('pointerOver');
+      hideTip('mouseOver');
     }, 250);
   };
 
@@ -357,8 +357,8 @@ const FrontLabelLines = ({
         aria-controls={menuListId}
         aria-expanded={isTipVisible}
         labelLine={labelLine}
-        onPointerEnter={() => pointerEnter(i)}
-        onPointerLeave={pointerLeave}
+        onMouseEnter={() => mouseEnter(i)}
+        onMouseLeave={mouseLeave}
         onPointerDown={focus}
         onPointerUp={focus}
         onClick={focus}
@@ -414,8 +414,8 @@ const FrontLabelLines = ({
             }}
             anchorProps={{
               className: tipClassName,
-              onPointerEnter: () => pointerEnter(i),
-              onPointerLeave: pointerLeave,
+              onPointerEnter: () => mouseEnter(i),
+              onPointerLeave: mouseLeave,
               'data-tip-for-textarea': textAreaId,
               'data-tip-for-marker': marker.uuid,
             }}
@@ -590,7 +590,7 @@ const withMarkableTextArea = ({
           onMarkersChangeFromParent && onMarkersChangeFromParent(e);
         };
         const onInEditMarkerChange = e => {
-          const inEditMarker = e.inEditMarker;
+          const inEditMarker = e.markers[e.inEditMarkerIndex];
           setInEditMarker(inEditMarker);
           onInEditMarkerChangeFromParent && onInEditMarkerChangeFromParent(e);
         };

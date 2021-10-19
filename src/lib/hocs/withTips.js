@@ -7,6 +7,14 @@ import React, {
 } from 'react';
 import useImperativeForwarder from '../hooks/useImperativeForwarder';
 
+export const TOTAL_HIDE = 1;
+export const SKIP_HIDE = false;
+export const DEFAULT_HIDE = true;
+
+export const VISIBLE = true;
+export const NOT_VISIBLE = false;
+export const TOGGLE_VISIBLITY = 'toggle';
+
 const withHideTipOnEscape =
   TipComponent =>
   ({onHide, ...restProps}) => {
@@ -24,6 +32,25 @@ const withHideTipOnEscape =
       return () => document.removeEventListener('keyup', listener);
     }, []);
     return <TipComponent onHide={onHide} {...restProps} />;
+  };
+
+const wrapHideAction =
+  (baseHideAction = () => DEFAULT_HIDE) =>
+  ({markerUuid, visiblityStack, requestedHideType}) => {
+    const hideOrNewVisiblityStack = baseHideAction({
+      markerUuid,
+      visiblityStack,
+    });
+    if (Array.isArray(hideOrNewVisiblityStack)) {
+      return hideOrNewVisiblityStack;
+    }
+    if (hideOrNewVisiblityStack === SKIP_HIDE) {
+      return visiblityStack;
+    }
+    if (hideOrNewVisiblityStack === TOTAL_HIDE || !requestedHideType) {
+      return [];
+    }
+    return visiblityStack.filter(({type}) => type !== requestedHideType);
   };
 
 const withTips = ({TipComponent, hideOnEscape = true} = {}) => {
@@ -68,16 +95,10 @@ const withTips = ({TipComponent, hideOnEscape = true} = {}) => {
           });
         }, []);
         const updateTipVisibility = useCallback(
-          ({marker, type, visibile, labelLineIndex}) => {
+          ({marker, type, visibile, labelLineIndex, hideAction}) => {
+            hideAction = wrapHideAction(hideAction);
             const markerUuid = marker?.uuid || marker;
             if (!visibile && !markerUuid) {
-              if (!type) {
-                setVisibleTipsSettings({
-                  data: {},
-                  dataStack: {},
-                });
-                return;
-              }
               setVisibleTipsSettings(visibleTipsSettings => {
                 const {data: tipsData, dataStack: tipsDataStack} =
                   visibleTipsSettings;
@@ -85,11 +106,14 @@ const withTips = ({TipComponent, hideOnEscape = true} = {}) => {
                 const newTipsDataStack = {...tipsDataStack};
                 // eslint-disable-next-line guard-for-in
                 for (const markerUuid in newTipsDataStack) {
-                  newTipsDataStack[markerUuid] = newTipsDataStack[
-                    markerUuid
-                    // eslint-disable-next-line no-loop-func
-                  ].filter(({type: currType}) => currType !== type);
-                  if (newTipsDataStack[markerUuid].length) {
+                  const newCurrMarkerDataStack = hideAction({
+                    markerUuid,
+                    visiblityStack: tipsDataStack[markerUuid],
+                    requestedHideType: type,
+                  });
+                  if (newCurrMarkerDataStack.length) {
+                    newTipsDataStack[markerUuid] = newCurrMarkerDataStack;
+
                     const focus = newTipsData[markerUuid].focus;
                     const lastTipData =
                       newTipsDataStack[markerUuid][
@@ -116,46 +140,51 @@ const withTips = ({TipComponent, hideOnEscape = true} = {}) => {
               const {data: tipsData, dataStack: tipsDataStack} =
                 visibleTipsSettings;
 
+              visibile =
+                visibile === TOGGLE_VISIBLITY
+                  ? !tipsDataStack[markerUuid]?.find(data => data.type === type)
+                  : Boolean(visibile);
+
               if (!visibile) {
                 const oldDataStack = tipsDataStack[markerUuid];
-                if (oldDataStack) {
-                  if (type) {
-                    const newDataStack = oldDataStack.filter(
-                      ({type: currType}) => type !== currType
-                    );
+                if (!oldDataStack) {
+                  return visibleTipsSettings;
+                }
+                const newCurrMarkerDataStack = hideAction({
+                  markerUuid,
+                  visiblityStack: oldDataStack,
+                  requestedHideType: type,
+                });
 
-                    if (newDataStack.length) {
-                      const lastTipData = newDataStack[newDataStack.length - 1];
-                      return {
-                        data: {
-                          ...tipsData,
-                          [markerUuid]: {
-                            type: lastTipData.type,
-                            labelLineIndex: lastTipData.labelLineIndex,
-                            focus: tipsData[markerUuid].focus,
-                          },
-                        },
-                        dataStack: {
-                          ...tipsDataStack,
-                          [markerUuid]: newDataStack,
-                        },
-                      };
-                    }
-                  }
-
-                  const newTipsData = {...tipsData};
-                  delete newTipsData[markerUuid];
-
-                  const newDataStack = {...tipsDataStack};
-                  delete newDataStack[markerUuid];
-
+                if (newCurrMarkerDataStack.length) {
+                  const lastTipData =
+                    newCurrMarkerDataStack[newCurrMarkerDataStack.length - 1];
                   return {
-                    data: newTipsData,
-                    dataStack: newDataStack,
+                    data: {
+                      ...tipsData,
+                      [markerUuid]: {
+                        type: lastTipData.type,
+                        labelLineIndex: lastTipData.labelLineIndex,
+                        focus: tipsData[markerUuid].focus,
+                      },
+                    },
+                    dataStack: {
+                      ...tipsDataStack,
+                      [markerUuid]: newCurrMarkerDataStack,
+                    },
                   };
                 }
 
-                return visibleTipsSettings;
+                const newTipsData = {...tipsData};
+                delete newTipsData[markerUuid];
+
+                const newDataStack = {...tipsDataStack};
+                delete newDataStack[markerUuid];
+
+                return {
+                  data: newTipsData,
+                  dataStack: newDataStack,
+                };
               }
               type = type || 'default-inner';
               return {
@@ -200,7 +229,9 @@ const withTips = ({TipComponent, hideOnEscape = true} = {}) => {
             updateTipVisibility={updateTipVisibility}
             updateTipFocusFunction={updateTipFocusFunction}
             onInEditMarkerChange={e => {
-              const {inEditMarker, oldInEditMarker} = e;
+              const {markers, inEditMarkerIndex, oldInEditMarkerIndex} = e;
+              const inEditMarker = markers[inEditMarkerIndex];
+              const oldInEditMarker = markers[oldInEditMarkerIndex];
               if (
                 oldInEditMarker &&
                 oldInEditMarker.uuid !== inEditMarker?.uuid

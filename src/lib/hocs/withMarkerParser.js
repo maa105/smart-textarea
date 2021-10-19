@@ -17,9 +17,6 @@ const spaces = {
   '\0': DEFAULT_END,
 };
 
-const getMarkerRawValue = (textareaValue, marker) =>
-  textareaValue.substring(marker.start, marker.end);
-
 const getUuid = () => `${Math.round(Math.random() * 999999)}-${Date.now()}`;
 const createMarker = ({
   uuid,
@@ -296,15 +293,6 @@ const update = ({
   };
 };
 
-const getIneditMarkerIndex = selection =>
-  selection.midSelectedMarkerIndex >= 0
-    ? selection.midSelectedMarkerIndex
-    : selection.endSelectedMarkerIndex >= 0
-    ? selection.endSelectedMarkerIndex
-    : selection.markerWithEndTouchedIndex >= 0
-    ? selection.markerWithEndTouchedIndex
-    : -1;
-
 const withMarkerParser = ({
   markerParser = parseMarkers,
   markerParserOptions = {
@@ -365,7 +353,6 @@ const withMarkerParser = ({
           onInput: onInputFromParent,
           onChange: onChangeFromParent,
           onMarkersChange,
-          onInEditMarkerChange,
           imperativeRef,
           ...props
         },
@@ -505,7 +492,6 @@ const withMarkerParser = ({
                     target: innerRef.current,
                     value: newValue,
                     markers: newMarkers,
-                    inEditMarker: mutableRef.current.inEditMarker,
                   });
 
                 return newMarker;
@@ -633,8 +619,6 @@ const withMarkerParser = ({
           setValue(parsedValue);
           setMarkers(parsedMarkers);
 
-          const oldInEditMarkerIndex = selection.inEditMarkerIndex;
-
           const newCursorPosition = newSelectionEnd; // might need to be refined!!!
           textarea.selectionStart = newCursorPosition; // forcing it for now if it isnt "should" always be though
 
@@ -647,31 +631,6 @@ const withMarkerParser = ({
               selectionEnd: newCursorPosition,
             }),
           };
-
-          const newInEditMarkerIndex = getIneditMarkerIndex(selection);
-          selection.inEditMarkerIndex = newInEditMarkerIndex;
-
-          mutableRef.current.selection = selection;
-
-          const oldInEditMarker = markers[oldInEditMarkerIndex];
-          const newInEditMarker = parsedMarkers[newInEditMarkerIndex];
-          if (
-            onInEditMarkerChange &&
-            (newInEditMarker?.uuid !== oldInEditMarker?.uuid ||
-              (newInEditMarker &&
-                getMarkerRawValue(parsedValue, newInEditMarker) !==
-                  getMarkerRawValue(prevValue, oldInEditMarker)))
-          ) {
-            onInEditMarkerChange({
-              target: textarea,
-              value: parsedValue,
-              oldValue: value,
-              markers: parsedMarkers,
-              oldMarkers: markers,
-              inEditMarker: newInEditMarker,
-              oldInEditMarker: mutableRef.current.inEditMarker,
-            });
-          }
 
           onMarkersChange &&
             onMarkersChange({
@@ -688,7 +647,6 @@ const withMarkerParser = ({
               target: textarea,
               value: parsedValue,
               markers: parsedMarkers,
-              inEditMarker: newInEditMarker,
             });
 
           return true;
@@ -700,7 +658,6 @@ const withMarkerParser = ({
               target: e.target,
               value: mutableRef.current.value,
               markers: mutableRef.current.markers,
-              inEditMarker: mutableRef.current.inEditMarker,
             });
         };
 

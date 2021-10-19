@@ -43,7 +43,7 @@ const App = () => {
           setMarkers(e.markers);
         }}
         onInEditMarkerChange={e => {
-          setInEditMarker(e.inEditMarker);
+          setInEditMarker(e.markers[e.inEditMarkerIndex]);
         }}
       />
       <p>
