@@ -1,6 +1,6 @@
 {
   "name": "smart-textarea-maa",
-  "version": "0.3.2",
+  "version": "0.4.1",
   "private": false,
   "dependencies": {
     "abort-controller": "^3.0.0",
@@ -58,7 +58,7 @@
   },
   "main": "lib/index.cjs.js",
   "module": "lib/index.esm.js",
-  "style": "lib/default.css",
+  "style": "styles.css",
   "engines": {
     "node": ">=10"
   },

@@ -1,0 +1,44 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# production
+/build
+
+/.husky
+/src
+/public
+
+# misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env
+.eslintrc
+.gitignore
+.lintstagedrc
+.nvmrc
+.prettierrc
+.stylelintrc
+babel.config.rollup.js
+jsconfig.json
+netlify.toml
+rollup.config.js
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# template
+template.json
+/template/*
+
+# documentation
+storybook-static
+

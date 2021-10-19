@@ -7,6 +7,9 @@ A configurable markable react textarea component that supports multiple anchor t
 e.g.
 
 ```js
+import 'smart-textarea-maa/lib/styles.css';
+import { withSmartTextArea } from 'smart-textarea-maa';
+
 const SmartTextArea = withSmartTextArea({
   version: 0,
   anchors: [
@@ -84,4 +87,9 @@ const SmartTextArea = withSmartTextArea({
   LoaderComponent,
   hideTipOnEscape: true,
 });
+
+... use it later
+
+<SmartTextArea initValue={...} initMarkers={...} onMarkersChange={...} onChange={...} />
+
 ```
