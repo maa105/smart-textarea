@@ -2,7 +2,7 @@ import React, {useEffect, useState, useRef, forwardRef} from 'react';
 import mergeRefs from '../helpers/mergeRefs';
 import useImperativeForwarder from '../hooks/useImperativeForwarder';
 import {blockMarkerUpdates} from '../helpers/blockMarkerUpdates';
-import {getMarkerSelections} from './withSelectionBlocker';
+import {getMarkerSelections} from './withMarkerSelection';
 
 const DEFAULT_END = true;
 const CURRENT_END = 1;
@@ -678,7 +678,7 @@ const withMarkerParser = ({
         return (
           <TextArea
             {...props}
-            ref={mergeRefs('withMarkerParser', ref, innerRef)}
+            ref={mergeRefs(ref, innerRef)}
             imperativeRef={childImperativeRef}
             value={value}
             markers={markers}

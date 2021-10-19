@@ -137,7 +137,7 @@ export const getMarkerSelections = ({
   return getReturn();
 };
 
-const withMarkerSelectionBlocker = (TextArea = 'textarea') =>
+const withMarkerSelection = (TextArea = 'textarea') =>
   forwardRef(
     (
       {
@@ -310,7 +310,7 @@ const withMarkerSelectionBlocker = (TextArea = 'textarea') =>
 
       return (
         <TextArea
-          ref={mergeRefs('withSelectionBlocker', ref, innerRef)}
+          ref={mergeRefs(ref, innerRef)}
           {...restProps}
           value={value}
           markers={markers}
@@ -320,4 +320,4 @@ const withMarkerSelectionBlocker = (TextArea = 'textarea') =>
     }
   );
 
-export default withMarkerSelectionBlocker;
+export default withMarkerSelection;

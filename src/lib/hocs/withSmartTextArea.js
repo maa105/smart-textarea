@@ -11,7 +11,7 @@ import withMarkerParser from './withMarkerParser';
 import withMarkableTextArea from './withMarkableTextArea';
 import withResize from './withResize';
 import withSelectionChange from './withSelectionChange';
-import withMarkerSelectionBlocker from './withSelectionBlocker';
+import withMarkerSelection from './withMarkerSelection';
 import withTips from './withTips';
 
 import BaseTextArea from '../components/BaseTextArea';
@@ -567,7 +567,7 @@ const withSmartTextArea = ({
                   anchors,
                 },
               })(
-                withMarkerSelectionBlocker(
+                withMarkerSelection(
                   withSelectionChange(
                     withBlockUndoRedoAndDragDropText(BaseTextArea)
                   )
