@@ -50,7 +50,7 @@ const getDetailComponent = ({
 
     useEffect(() => {
       if (data || data === null) {
-        return null;
+        return undefined;
       }
       const cachedData = cache.getItem(cacheKey);
       if (cachedData || cachedData === null) {
@@ -58,7 +58,7 @@ const getDetailComponent = ({
           data: cachedData,
         });
         setResult({});
-        return null;
+        return undefined;
       }
       const abortCtrl = new AbortController();
       setResult({loading: true});
@@ -339,18 +339,18 @@ const getSingleTip = ({
     useEffect(() => {
       if (mutableRef.current.isLocked) {
         setResults({});
-        return null;
+        return undefined;
       }
       mutableRef.current.cacheKey = cacheKey;
       if (cacheKey === null) {
         mutableRef.current.onHide();
-        return null;
+        return undefined;
       }
 
       const cachedResults = cache.getItem(cacheKey);
       if (cachedResults) {
         setResults({results: cachedResults});
-        return null;
+        return undefined;
       }
       const abortCtrl = new AbortController();
       setResults({loading: true});
