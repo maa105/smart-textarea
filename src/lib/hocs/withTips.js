@@ -67,6 +67,7 @@ const withTips = ({TipComponent, hideOnEscape = true} = {}) => {
         },
         ref
       ) => {
+        const mutableRef = useRef({});
         const [{data: visibleTipsData}, setVisibleTipsSettings] = useState({
           data: {},
           dataStack: {},
@@ -229,9 +230,10 @@ const withTips = ({TipComponent, hideOnEscape = true} = {}) => {
             updateTipVisibility={updateTipVisibility}
             updateTipFocusFunction={updateTipFocusFunction}
             onInEditMarkerChange={e => {
-              const {markers, inEditMarkerIndex, oldInEditMarkerIndex} = e;
+              const {markers, inEditMarkerIndex} = e;
               const inEditMarker = markers[inEditMarkerIndex];
-              const oldInEditMarker = markers[oldInEditMarkerIndex];
+              const oldInEditMarker = mutableRef.current.inEditMarker;
+              mutableRef.current.inEditMarker = inEditMarker;
               if (
                 oldInEditMarker &&
                 oldInEditMarker.uuid !== inEditMarker?.uuid
@@ -242,7 +244,8 @@ const withTips = ({TipComponent, hideOnEscape = true} = {}) => {
                   type: 'inEdit',
                 });
               }
-              if (inEditMarker) {
+              if (inEditMarker && inEditMarker !== oldInEditMarker) {
+                // whether a different marker or same marker but updated
                 updateTipVisibility({
                   marker: inEditMarker,
                   visibile: true,
