@@ -273,17 +273,16 @@ const withMarkerSelection = (TextArea = 'textarea') =>
           nextMarkerIndex,
         });
 
-        if (!mutableRef.current.pointerDown || !prevSelection) {
-          mutableRef.current.selection = newSelection;
-          onInEditMarkerChange &&
-            onInEditMarkerChange({
-              target: textarea,
-              value,
-              markers,
-              inEditMarkerIndex: newSelection.inEditMarkerIndex,
-              oldInEditMarkerIndex: prevSelection?.inEditMarkerIndex,
-            });
-        }
+        mutableRef.current.selection = newSelection;
+
+        onInEditMarkerChange &&
+          onInEditMarkerChange({
+            target: textarea,
+            value,
+            markers,
+            inEditMarkerIndex: newSelection.inEditMarkerIndex,
+            oldInEditMarkerIndex: prevSelection?.inEditMarkerIndex,
+          });
 
         onSelectionChangeFromParent &&
           onSelectionChangeFromParent({
@@ -291,22 +290,6 @@ const withMarkerSelection = (TextArea = 'textarea') =>
             ...newSelection,
           });
       };
-
-      useEffect(() => {
-        const textarea = innerRef.current;
-        const onPointerDownListener = () => {
-          mutableRef.current.pointerDown = true;
-        };
-        const onPointerUpListener = () => {
-          mutableRef.current.pointerDown = false;
-        };
-        textarea.addEventListener('pointerdown', onPointerDownListener);
-        document.addEventListener('pointerup', onPointerUpListener);
-        return () => {
-          textarea.removeEventListener('pointerdown', onPointerDownListener);
-          document.removeEventListener('pointerup', onPointerUpListener);
-        };
-      }, []);
 
       return (
         <TextArea
