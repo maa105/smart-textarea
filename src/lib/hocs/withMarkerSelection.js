@@ -1,4 +1,4 @@
-import React, {forwardRef, useEffect, useRef} from 'react';
+import React, {forwardRef, useRef} from 'react';
 import mergeRefs from '../helpers/mergeRefs';
 
 const getInEditMarkerIndex = selection =>
