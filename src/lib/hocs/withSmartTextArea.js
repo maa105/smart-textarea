@@ -14,12 +14,11 @@ import withSelectionChange from './withSelectionChange';
 import withMarkerSelection from './withMarkerSelection';
 import withTips from './withTips';
 
-import BaseTextArea from '../components/BaseTextArea';
 import useDebounceValue from '../hooks/useDebounceValue';
 import withFocusTipOnDown from './withFocusTipOnDown';
 import withBlurTipsOnOutsideClickOrFocusOnInsideClick from './withBlurTipsOnOutsideClickOrFocusOnInsideClick';
-import usePrev from '../hooks/usePrev';
 import withBlockUndoRedoAndDragDropText from './withBlockUndoRedoAndDragDropText';
+import withBaseTextArea from './withBaseTextArea';
 
 const getDetailComponent = ({
   Component,
@@ -171,13 +170,31 @@ const getSearchResultPickerComponent = ({
         data,
         ...update,
         isLocked: update.isLocked ?? true,
+        cursor: update.cursor ?? 'end',
       });
       setTimeout(() => onHide());
     };
 
     const focused =
       focusedIndex == null ? null : modulo(focusedIndex, results.length);
-    const toFocus = usePrev(focused) !== focused ? focused : null;
+    const focusedRef = useRef();
+
+    useEffect(() => {
+      if (focused != null && focusedRef.current) {
+        focusedRef.current.focus();
+        const t = setTimeout(() => {
+          if (
+            document.activeElement !== focusedRef.current &&
+            document.activeElement.getAttribute('tabIndex') === '-1'
+          ) {
+            document.activeElement.removeAttribute('tabIndex');
+            focusedRef.current.focus();
+          }
+        });
+        return () => clearTimeout(t);
+      }
+      return undefined;
+    }, [focused]);
 
     const onKeyDown = e => {
       if (e.key === 'ArrowDown') {
@@ -189,6 +206,7 @@ const getSearchResultPickerComponent = ({
           focusParent();
         }
         e.preventDefault();
+        e.stopPropagation();
       } else if (e.key === 'ArrowUp') {
         const next = focused - 1;
         if (next >= 0) {
@@ -198,18 +216,22 @@ const getSearchResultPickerComponent = ({
           focusParent();
         }
         e.preventDefault();
+        e.stopPropagation();
       } else if (e.key === 'ArrowLeft') {
         setFocusedIndex(null);
         onHide({start: true});
         e.preventDefault();
+        e.stopPropagation();
       } else if (e.key === 'ArrowRight') {
         setFocusedIndex(null);
         focusParent();
         e.preventDefault();
+        e.stopPropagation();
       } else if (e.key === 'Enter') {
         if (results[focused]) {
           select(results[focused]);
           e.preventDefault();
+          e.stopPropagation();
         }
       }
     };
@@ -229,22 +251,18 @@ const getSearchResultPickerComponent = ({
           // eslint-disable-next-line react/no-array-index-key
           <li key={i} role="none">
             <a
-              ref={
-                toFocus === i
-                  ? elem => {
-                      if (elem?.focus) {
-                        elem.focus();
-                      }
-                    }
-                  : null
-              }
+              ref={elem => {
+                if (focused === i) {
+                  focusedRef.current = elem;
+                }
+              }}
               role="menuitem"
               tabIndex="-1"
               className={`search-results-list-item${
                 focused === i ? ' search-results-list-item--focused' : ''
               }`}
               onClick={() => select(item)}>
-              <ItemComponent item={item} />
+              <ItemComponent item={item} marker={marker} />
             </a>
           </li>
         ))}
@@ -269,7 +287,7 @@ const getSingleTip = ({
       getCacheKey: getSearchCacheKey = searchData => JSON.stringify(searchData),
       LoaderComponent: SearchLoaderComponent,
       ErrorComponent: SearchErrorComponent,
-      debounceDuration = 350,
+      debounceDuration,
     },
     details: {
       Component: DetailComponent,
@@ -286,7 +304,10 @@ const getSingleTip = ({
   LoaderComponent: CommonLoaderComponent,
   ErrorComponent: CommonErrorComponent,
   getCache,
+  defaultDebounceDuration,
 }) => {
+  debounceDuration = debounceDuration || defaultDebounceDuration;
+
   DetailComponent = getDetailComponent({
     Component: DetailComponent,
     NotFoundComponent: DetailNotFoundComponent,
@@ -326,30 +347,33 @@ const getSingleTip = ({
     const {markerData} = marker;
     const searchData = preProcessMarkerDataForSearch(markerData) ?? null;
 
-    const [{loading, error, results}, setResults] = useState({});
+    const [{loading, error, results, resultsCacheKey}, setResults] = useState(
+      {}
+    );
 
     mutableRef.current.isLocked = marker.isLocked;
     mutableRef.current.onHide = onHide;
     mutableRef.current.searchData = searchData;
 
-    const cacheKey = useDebounceValue(
-      searchData != null ? getSearchCacheKey(searchData) : null,
-      debounceDuration
-    );
+    const cacheKey = searchData != null ? getSearchCacheKey(searchData) : null;
+    const debouncedCacheKey = useDebounceValue(cacheKey, debounceDuration);
     useEffect(() => {
       if (mutableRef.current.isLocked) {
         setResults({});
         return undefined;
       }
-      mutableRef.current.cacheKey = cacheKey;
-      if (cacheKey === null) {
+      mutableRef.current.cacheKey = debouncedCacheKey;
+      if (debouncedCacheKey === null) {
         mutableRef.current.onHide();
         return undefined;
       }
 
-      const cachedResults = cache.getItem(cacheKey);
+      const cachedResults = cache.getItem(debouncedCacheKey);
       if (cachedResults) {
-        setResults({results: cachedResults});
+        setResults({
+          results: cachedResults,
+          resultsCacheKey: debouncedCacheKey,
+        });
         return undefined;
       }
       const abortCtrl = new AbortController();
@@ -359,9 +383,9 @@ const getSingleTip = ({
           if (mutableRef.current.isLocked) {
             return;
           }
-          cache.setItem(cacheKey, results);
-          if (mutableRef.current.cacheKey === cacheKey) {
-            setResults({results});
+          cache.setItem(debouncedCacheKey, results);
+          if (mutableRef.current.cacheKey === debouncedCacheKey) {
+            setResults({results, resultsCacheKey: debouncedCacheKey});
           }
         })
         .catch(error => {
@@ -371,12 +395,12 @@ const getSingleTip = ({
           if (error.aborted) {
             return;
           }
-          if (mutableRef.current.cacheKey === cacheKey) {
+          if (mutableRef.current.cacheKey === debouncedCacheKey) {
             setResults({error});
           }
         });
       return () => abortCtrl.abort();
-    }, [cacheKey]); // , marker.isLocked, onHide, searchData
+    }, [debouncedCacheKey]);
 
     if (marker.isLocked) {
       return (
@@ -400,7 +424,7 @@ const getSingleTip = ({
     if (error) {
       return <ErrorComponent error={error} />;
     }
-    if (!results) {
+    if (!results || resultsCacheKey !== cacheKey) {
       return null;
     }
     return (
@@ -422,9 +446,9 @@ const getSingleTip = ({
 
 const getTip = ({
   tipsOptionsByType,
-  LoaderComponent,
-  ErrorComponent,
-  debounceDuration,
+  LoaderComponent = () => 'Loading...',
+  ErrorComponent = ({error}) => error?.message || 'Oops',
+  defaultDebounceDuration,
   getCache,
 }) => {
   const ComponentsByType = {};
@@ -434,7 +458,7 @@ const getTip = ({
       tipOptions: tipsOptionsByType[type],
       LoaderComponent,
       ErrorComponent,
-      debounceDuration,
+      defaultDebounceDuration,
       getCache,
     });
   }
@@ -514,18 +538,37 @@ const withId =
       return <TextArea ref={ref} id={textAreaId} {...restProps} />;
     });
 
+const withStyle =
+  ({defaultLineHeight = '135%', defaultWidth}) =>
+  (TextArea = 'textarea') =>
+  ({width, lineHeight, ...restProps}) =>
+    (
+      <TextArea
+        {...restProps}
+        style={{
+          ...restProps.style,
+          width: width ?? restProps.style?.width ?? defaultWidth,
+          lineHeight:
+            lineHeight ?? restProps.style?.lineHeight ?? defaultLineHeight,
+        }}
+      />
+    );
+
 const withSmartTextArea = ({
   anchors: baseAnchors,
   version,
   LoaderComponent,
   ErrorComponent,
   hideTipOnEscape = true,
-  debounceDuration = 300,
+  defaultDebounceDuration = 300,
   getId = () => `${Math.round(Math.random() * 999999)}-${Date.now()}`,
   classNameGetters,
   getCache,
   backgroundColor,
-  lineHeight,
+  defaultLineHeight,
+  defaultWidth,
+  TextArea,
+  tipsZIndex,
 }) => {
   getCache = getCache ? wrapGetCache(getCache) : defaultGetCache;
 
@@ -543,33 +586,40 @@ const withSmartTextArea = ({
     });
   });
   return withId(getId)(
-    withTips({
-      hideOnEscape: hideTipOnEscape,
-      TipComponent: getTip({
-        tipsOptionsByType,
-        LoaderComponent,
-        ErrorComponent,
-        debounceDuration,
-        getCache,
-      }),
+    withStyle({
+      defaultLineHeight,
+      defaultWidth,
     })(
-      withBlurTipsOnOutsideClickOrFocusOnInsideClick(
-        withFocusTipOnDown(
-          withMarkableTextArea({
-            classNameGetters,
-            defaultBackgroundColor: backgroundColor,
-            defaultLineHeight: lineHeight,
-          })(
-            withResize(
-              withMarkerParser({
-                markerParserOptions: {
-                  version,
-                  anchors,
-                },
-              })(
-                withMarkerSelection(
-                  withSelectionChange(
-                    withBlockUndoRedoAndDragDropText(BaseTextArea)
+      withTips({
+        hideOnEscape: hideTipOnEscape,
+        TipComponent: getTip({
+          tipsOptionsByType,
+          LoaderComponent,
+          ErrorComponent,
+          defaultDebounceDuration,
+          getCache,
+        }),
+      })(
+        withBlurTipsOnOutsideClickOrFocusOnInsideClick(
+          withFocusTipOnDown(
+            withMarkableTextArea({
+              classNameGetters,
+              tipsZIndex,
+              defaultBackgroundColor: backgroundColor,
+            })(
+              withResize(
+                withMarkerParser({
+                  markerParserOptions: {
+                    version,
+                    anchors,
+                  },
+                })(
+                  withMarkerSelection(
+                    withSelectionChange(
+                      withBlockUndoRedoAndDragDropText(
+                        withBaseTextArea(TextArea)
+                      )
+                    )
                   )
                 )
               )

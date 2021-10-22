@@ -272,6 +272,7 @@ const FrontLabelLines = ({
   updateTipFocusFunction,
   markersHandlers,
   textAreaId,
+  tipsZIndex,
 }) => {
   const [visibleTipLabelLineIndex, setVisibleTipLabelLineIndex] = useState(-1);
   let visibleTipIndex =
@@ -385,6 +386,7 @@ const FrontLabelLines = ({
         key="visible-tip"
         attachment="top left"
         targetAttachment="bottom left"
+        style={{zIndex: tipsZIndex}}
         constraints={[
           {
             to: 'scrollParent',
@@ -414,8 +416,8 @@ const FrontLabelLines = ({
             }}
             anchorProps={{
               className: tipClassName,
-              onPointerEnter: () => mouseEnter(i),
-              onPointerLeave: mouseLeave,
+              onMouseEnter: () => mouseEnter(i),
+              onMouseLeave: mouseLeave,
               'data-tip-for-textarea': textAreaId,
               'data-tip-for-marker': marker.uuid,
             }}
@@ -443,6 +445,7 @@ const FrontMarkers = ({
   updateTipFocusFunction,
   markersHandlers,
   textAreaId,
+  tipsZIndex,
 }) =>
   markers.map((marker, i) => {
     const labelLines = labels[i];
@@ -475,6 +478,7 @@ const FrontMarkers = ({
         updateTipFocusFunction={updateTipFocusFunction}
         markersHandlers={markersHandlers}
         textAreaId={textAreaId}
+        tipsZIndex={tipsZIndex}
       />
     );
   });
@@ -486,6 +490,8 @@ const BackLabelLines = ({labelLines, getClassName}) => {
     const isLastLine = i === last;
     return (
       <LabelLine
+        // eslint-disable-next-line react/no-array-index-key
+        key={i}
         labelLine={labelLine}
         className={getClassName({isFirstLine, isLastLine})}
       />
@@ -539,8 +545,8 @@ const defaultClassNameGetters = {
 };
 
 const withMarkableTextArea = ({
-  defaultLineHeight = '135%',
   defaultBackgroundColor = 'white',
+  tipsZIndex = 99999999,
   classNameGetters = defaultClassNameGetters,
 } = {}) => {
   classNameGetters = {...defaultClassNameGetters, ...classNameGetters};
@@ -548,7 +554,6 @@ const withMarkableTextArea = ({
     forwardRef(
       (
         {
-          lineHeight = defaultLineHeight,
           backgroundColor = defaultBackgroundColor,
           InnerComponent,
           TipComponent,
@@ -601,7 +606,10 @@ const withMarkableTextArea = ({
         }, [markers]);
 
         return (
-          <div id={id} className="textarea-container" style={{backgroundColor}}>
+          <div
+            id={id}
+            className="textarea-container"
+            style={{backgroundColor, width: restProps.style?.width}}>
             <div className="textarea-back">
               <BackMarkers
                 markers={mutableRef.current.markers}
@@ -616,10 +624,6 @@ const withMarkableTextArea = ({
               {...restProps}
               id={id}
               imperativeRef={mergeRefs(imperativeRef, imperativeRefFromParent)}
-              style={{
-                ...restProps.style,
-                lineHeight: restProps.style?.lineHeight ?? lineHeight,
-              }}
               onScroll={onScroll}
               onResize={onResize}
               onMarkersChange={onMarkersChange}
@@ -639,6 +643,7 @@ const withMarkableTextArea = ({
                 updateTipFocusFunction={updateTipFocusFunction}
                 markersHandlers={imperativeRef.current}
                 textAreaId={id}
+                tipsZIndex={tipsZIndex}
               />
             </div>
           </div>

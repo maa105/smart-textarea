@@ -21,7 +21,9 @@ const withResize = (TextArea = 'textarea') =>
       };
     }, []);
     return (
-      <div className="textarea-with-resize-container">
+      <div
+        className="textarea-with-resize-container"
+        style={{width: restProps.style?.width}}>
         <iframe ref={iframeRef} title="resize-frame" />
         <TextArea ref={ref} {...restProps} />
       </div>

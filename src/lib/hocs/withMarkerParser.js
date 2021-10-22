@@ -20,6 +20,7 @@ const spaces = {
 const getUuid = () => `${Math.round(Math.random() * 999999)}-${Date.now()}`;
 const createMarker = ({
   uuid,
+  version,
   anchor,
   type,
   start,
@@ -29,6 +30,7 @@ const createMarker = ({
   isLocked = false,
 }) => ({
   uuid: uuid ?? getUuid(),
+  version,
   anchor,
   type,
   start,
@@ -295,29 +297,7 @@ const update = ({
 
 const withMarkerParser = ({
   markerParser = parseMarkers,
-  markerParserOptions = {
-    version: 0,
-    anchors: [
-      {
-        anchorChar: '@',
-        type: 'person',
-        parts: [
-          {
-            key: 'username',
-          },
-        ],
-      },
-      {
-        anchorChar: '#',
-        type: 'rfi',
-        parts: [
-          {
-            key: 'rifId',
-          },
-        ],
-      },
-    ],
-  },
+  markerParserOptions,
 } = {}) => {
   if (markerParser === parseMarkers) {
     const anchors = {};
@@ -353,6 +333,7 @@ const withMarkerParser = ({
           onInput: onInputFromParent,
           onChange: onChangeFromParent,
           onMarkersChange,
+          disabled,
           imperativeRef,
           ...props
         },
@@ -361,15 +342,17 @@ const withMarkerParser = ({
         const mutableRef = useRef();
         mutableRef.current = mutableRef.current || {
           value: initValue ?? '',
-          markers: (initMarkers ?? []).map(marker =>
-            createMarker({
-              ...marker,
-              isLocked: true,
-            })
-          ),
+          markers:
+            initMarkers?.map(marker =>
+              createMarker({
+                isLocked: true,
+                ...marker,
+              })
+            ) ?? [],
         };
 
         mutableRef.current.onMarkersChange = onMarkersChange;
+        mutableRef.current.disabled = disabled;
 
         const innerRef = useRef();
 
@@ -415,7 +398,12 @@ const withMarkerParser = ({
                 let newMarker = null;
 
                 if (update) {
-                  const {textValue, appendText = '', ...markerUpdates} = update;
+                  const {
+                    textValue,
+                    cursor,
+                    appendText = '',
+                    ...markerUpdates
+                  } = update;
                   const hasNewText = textValue != null;
                   const lengthChange = hasNewText
                     ? textValue.length +
@@ -456,6 +444,18 @@ const withMarkerParser = ({
                     setValue(newValue);
                   }
                   setMarkers(newMarkers);
+                  if (cursor) {
+                    const textarea = innerRef.current;
+                    innerRef.current.value = newValue;
+                    const marker = newMarkers[i];
+                    if (cursor === 'start') {
+                      textarea.selectionStart = textarea.selectionEnd =
+                        marker.start;
+                    } else if (cursor === 'end') {
+                      textarea.selectionStart = textarea.selectionEnd =
+                        marker.end + appendText.length;
+                    }
+                  }
                 } else {
                   const {start: selectionStart, end: selectionEnd} = marker;
                   const lengthChange = selectionEnd - selectionStart;
@@ -506,6 +506,20 @@ const withMarkerParser = ({
                 updateMarker(marker, marker => {
                   if (typeof update === 'function') {
                     update = update(marker);
+                  }
+                  if (mutableRef.current.disabled) {
+                    if (update === null) {
+                      return false; // if disabled you cannot delete a marker
+                    }
+                    if (update) {
+                      if (marker.data === undefined) {
+                        // if disabled you can only update the data and only if it didnt exist
+                        return {
+                          data: update.data,
+                        };
+                      }
+                      return false;
+                    }
                   }
                   if (update) {
                     let isLocked;
@@ -680,6 +694,7 @@ const withMarkerParser = ({
             {...props}
             ref={mergeRefs(ref, innerRef)}
             imperativeRef={childImperativeRef}
+            disabled={disabled}
             value={value}
             markers={markers}
             onInput={onInput}

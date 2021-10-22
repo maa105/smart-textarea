@@ -1,8 +1,8 @@
 import React, {useImperativeHandle, useRef} from 'react';
 import mergeRefs from '../helpers/mergeRefs';
 
-const BaseTextArea = React.forwardRef(
-  ({markers, imperativeRef, id, ...restProps}, ref) => {
+const withBaseTextArea = (TextArea = 'textarea') =>
+  React.forwardRef(({markers, imperativeRef, id, ...restProps}, ref) => {
     const innerRef = useRef();
     useImperativeHandle(
       imperativeRef,
@@ -24,13 +24,12 @@ const BaseTextArea = React.forwardRef(
       []
     );
     return (
-      <textarea
+      <TextArea
         ref={mergeRefs(ref, innerRef)}
         id={`${id}-textarea`}
         {...restProps}
       />
     );
-  }
-);
+  });
 
-export default BaseTextArea;
+export default withBaseTextArea;

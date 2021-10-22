@@ -37,6 +37,7 @@ const withFocusTipOnDown = TextArea =>
               }
             });
             e.preventDefault();
+            e.stopPropagation();
           } else {
             mutableRef.current.updateTipVisibility({
               visibile: false,
