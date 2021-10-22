@@ -1,6 +1,6 @@
 {
   "name": "smart-textarea-maa",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "private": false,
   "dependencies": {
     "abort-controller": "^3.0.0",
