@@ -539,6 +539,7 @@ const withMarkerParser = ({
                       data:
                         update.data === undefined ? marker.data : update.data,
                       markerData: update.markerData ?? marker.markerData,
+                      cursor: update.cursor,
                     };
                   }
                   return update;
