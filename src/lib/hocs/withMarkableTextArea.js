@@ -322,14 +322,18 @@ const FrontLabelLines = ({
 
   useEffect(() => () => clearTimeout(mutableRef.current.timer), []);
 
-  const focus = ({start, delta} = {}) => {
-    delta = delta ?? 0;
+  const focus = (whereToFocus = {}) => {
+    const {start, end} = whereToFocus;
+    const delta = whereToFocus.delta ?? 0;
     if (start) {
       markersHandlers.focus(marker.start - delta);
-    } else {
+    } else if (end) {
       markersHandlers.focus(marker.end + delta);
+    } else {
+      markersHandlers.focus();
     }
   };
+  const focusEnd = () => focus({end: true});
 
   const markerUuid = marker.uuid;
   const focusImperativeRef = useCallback(
@@ -360,9 +364,9 @@ const FrontLabelLines = ({
         labelLine={labelLine}
         onMouseEnter={() => mouseEnter(i)}
         onMouseLeave={mouseLeave}
-        onPointerDown={focus}
-        onPointerUp={focus}
-        onClick={focus}
+        onPointerDown={focusEnd}
+        onPointerUp={focusEnd}
+        onClick={focusEnd}
         data-tip-anchor-for-textarea={textAreaId}
         data-tip-anchor-for-marker={marker.uuid}
         className={getClassName({

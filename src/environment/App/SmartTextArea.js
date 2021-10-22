@@ -238,6 +238,13 @@ const SmartTextArea = withSmartTextArea({
             <ResultListComponent {...props} />
           </p>
         ),
+        NoSearchComponent: () => (
+          <pre>
+            Write something to start the search.
+            <br />
+            This custom no search message is only configured for things
+          </pre>
+        ),
         ResultItemComponent: ThingSearchResultItem,
         resultItemComponentOnSelect: ({selectedItem: thing}) => ({
           textValue: thing.name,

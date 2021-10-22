@@ -281,6 +281,7 @@ const getSingleTip = ({
       ResultItemComponent: SearchResultsItemComponent,
       resultItemComponentOnSelect,
       NoResultItemComponent,
+      NoSearchComponent,
       loader: searchFunction,
       preProcessMarkerData: preProcessMarkerDataForSearch = markerData =>
         markerData,
@@ -364,7 +365,9 @@ const getSingleTip = ({
       }
       mutableRef.current.cacheKey = debouncedCacheKey;
       if (debouncedCacheKey === null) {
-        mutableRef.current.onHide();
+        if (!NoSearchComponent) {
+          mutableRef.current.onHide();
+        }
         return undefined;
       }
 
@@ -423,6 +426,16 @@ const getSingleTip = ({
     }
     if (error) {
       return <ErrorComponent error={error} />;
+    }
+    if (cacheKey === null && NoSearchComponent) {
+      return (
+        <NoSearchComponent
+          searchData={searchData}
+          marker={marker}
+          focusParent={focusParent}
+          onHide={onHide}
+        />
+      );
     }
     if (!results || resultsCacheKey !== cacheKey) {
       return null;
