@@ -368,6 +368,7 @@ const getSingleTip = ({
         if (!NoSearchComponent) {
           mutableRef.current.onHide();
         }
+        setResults({});
         return undefined;
       }
 
