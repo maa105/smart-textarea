@@ -77,6 +77,7 @@ export const getMarkerSelections = ({
 
   if (midSelected) {
     midSelectedMarkerIndex = i;
+    nextMarkerIndex = i + 1;
     return getReturn();
   }
   if (!totalySelected) {
