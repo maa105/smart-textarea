@@ -11,7 +11,7 @@ import 'smart-textarea-maa/lib/styles.css';
 import { withSmartTextArea } from 'smart-textarea-maa';
 
 const SmartTextArea = withSmartTextArea({
-  version: 0,
+  version: 0, // the version for the markers will be set on all markers (helps managing old markers)
   anchors: [
     {
       anchorChar: '@',
@@ -69,7 +69,7 @@ const SmartTextArea = withSmartTextArea({
         }),
         loader: ({name}, signal) => thingSearch(name, signal),
         getCacheKey: ({name}) => name?.trim().toLowerCase() || null,
-        debounceDuration: 350,
+        debounceDuration: 350,  // defaults to defaultDebounceDuration
       },
       detailsOptions: {
         Component: ThingDetails,
@@ -83,9 +83,15 @@ const SmartTextArea = withSmartTextArea({
     back: ({ isFirstLine, isLastLine, isTipVisible, isInEdit, marker }) => 'back-label-class',
     tip: ({ marker }) => 'marker-class',
   }
-  ErrorComponent,
-  LoaderComponent,
-  hideTipOnEscape: true,
+  ErrorComponent,     // default to "Loading..."
+  LoaderComponent,    // defaults to displaying the error message or "Oops"
+  hideTipOnEscape: true,  // defaults to true
+  backgroundColor,    // default white
+  defaultLineHeight,  // defaul 135%
+  defaultWidth,
+  TextArea,           // base textarea to use
+  tipsZIndex,         // tips z-index defaults to 99999999
+  defaultDebounceDuration: 500  // defaults to 300
 });
 
 ... use it later
