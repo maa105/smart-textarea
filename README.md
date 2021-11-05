@@ -1,6 +1,6 @@
 # Smart TextArea
 
-A configurable markable react textarea component that supports multiple anchor types (people, things, places)
+A configurable markable react textarea component that supports multiple anchor types (people, things, places). And multiple part per anchor type for nested/dependant/parent,child/etc... senarios
 
 [Demo](https://maa105.github.io/smart-textarea/)
 
@@ -18,64 +18,64 @@ const SmartTextArea = withSmartTextArea({
       type: 'person',
       parts: [
         {
-          key: 'name',
-        },
-        // you can have multiple parts (to doc)
-      ],
-      searchOptions: {
-        ResultItemComponent: PersonSearchResultItem,
-        NoResultItemComponent,
-        resultItemComponentOnSelect: ({selectedItem: person}) => ({
-          textValue: person.name, // when an item is selected the text of it will change to what you specify by textValue
-          markerData: {
-            // marker data to help identify entity later
-            id: person.id,
+          key: 'person',
+          endChar: ':',
+          searchConfig: {
+            // data: [...], you can send the data with an optional filter function
+            // filterData: (data) => data.filter(...),
+            loader: ({searchText}, signal) => personSearch(name, signal), // or provide a loader function.Note the first param is from getSearchData function if provided otherwise it defaults to {searchText, partsIds(the ids of the parts resolved so far)}, second param is signal to cancel seach
+            ResultItemComponent: PersonSearchResultItem, // to display an item
+            NoResultItemComponent,  // if none found, defaults to ResultItemComponent
+            onItemSelect: ({selectedItem: person}) => ({  // very important to update marker/part on user selection/autoSelection
+              text: person.name, // when an item is selected the text of it will change to what you specify by textValue
+              id: person.id,
+              // data: person, defaults to it anyways so no need to send if same
+            }),
+            debounceDuration: 350,
           },
-        }),
-        loader: ({name}, signal) => personSearch(name, signal), // first param is parsed from parts, second param is signal to cancel seach
-        getCacheKey: ({name}) => name?.trim().toLowerCase() || null, // first param is parsed from parts
-        debounceDuration: 350,
-      },
-      detailsOptions: {
-        Component: PersonDetails,
-        NotFoundComponent,
-        loader: ({id}, signal) => personDetails(id, signal), // first param is markerData specified above
-        getCacheKey: ({id}) => id,
-      },
+          detailsConfig: {
+            // findInSearchData, // if data is provided in search config this is needed
+            loader: ({person: id}, signal) => personDetails(id, signal), // first param if from getLoadData if provided. defaults to partsIds. thats why the key is person same as current part id
+            Component: PersonDetails,
+            NotFoundComponent,
+            getCacheKey: ({person: id}) => id, // defaults to JSON.stringify
+            // shouldReloadData: (data) => data === undefined, // defaults to this anyways. use if not all needed fields are available from the search items
+          },
+        },
+        // you can have multiple parts. see demo to get a feal for it
+      ],
     },
     {
       anchorChar: '#',
       type: 'thing',
       parts: [
         {
-          key: 'name',
+          key: 'thing',
+          searchConfig: {
+            ResultsComponent: (
+              {ResultListComponent, ...props} // gives flexibility to wrap ResultsList or get away with it completely
+            ) => (
+              <p>
+                <h5>Found the following things:</h5>
+                <ResultListComponent {...props} /> {/*will display a selectable list of the results using ResultItemComponent*/}
+              </p>
+            ),
+            ResultItemComponent: ThingSearchResultItem,
+            onItemSelect: ({selectedItem: thing}) => ({
+              text: thing.name,
+              id: thing.id,
+            }),
+            loader: ({searchText}, signal) => thingSearch(searchText, signal),
+            getCacheKey: ({searchText}) => searchText?.trim().toLowerCase() || null,
+            debounceDuration: 350,  // defaults to defaultDebounceDuration
+          },
+          detailsConfig: {
+            Component: ThingDetails,
+            loader: ({thing: id}, signal) => thingDetails(id, signal),
+            getCacheKey: ({thing: id}) => id,
+          },
         },
       ],
-      searchOptions: {
-        ResultsComponent: (
-          {ResultListComponent, ...props} // gives flexibility to wrap ResultsList or get away with it completely
-        ) => (
-          <p>
-            <h5>Found the following things:</h5>
-            <ResultListComponent {...props} /> {/*will display a selectable list of the results using ResultItemComponent*/}
-          </p>
-        ),
-        ResultItemComponent: ThingSearchResultItem,
-        resultItemComponentOnSelect: ({selectedItem: thing}) => ({
-          textValue: thing.name,
-          markerData: {
-            id: thing.id,
-          },
-        }),
-        loader: ({name}, signal) => thingSearch(name, signal),
-        getCacheKey: ({name}) => name?.trim().toLowerCase() || null,
-        debounceDuration: 350,  // defaults to defaultDebounceDuration
-      },
-      detailsOptions: {
-        Component: ThingDetails,
-        loader: ({id}, signal) => thingDetails(id, signal),
-        getCacheKey: ({id}) => id,
-      },
     },
   ],
   classNameGetters: {
@@ -87,15 +87,16 @@ const SmartTextArea = withSmartTextArea({
   LoaderComponent,    // defaults to displaying the error message or "Oops"
   hideTipOnEscape: true,  // defaults to true
   backgroundColor,    // default white
-  defaultLineHeight,  // defaul 135%
-  defaultWidth,
+  lineHeight,         // default 135%
+  width,              // defaults to not setting a width
   TextArea,           // base textarea to use
   tipsZIndex,         // tips z-index defaults to 99999999
-  defaultDebounceDuration: 500  // defaults to 300
+  isAbortError: (error) => error.message.toLowerCase().includes('abort),
+  debounceDuration: 500  // defaults to 300
 });
 
 ... use it later
 
-<SmartTextArea initValue={...} initMarkers={...} onMarkersChange={...} onChange={...} />
+<SmartTextArea initValue={...} initMarkers={...} onChange={...} />
 
 ```

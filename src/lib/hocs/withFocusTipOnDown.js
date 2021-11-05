@@ -24,7 +24,7 @@ const withFocusTipOnDown = TextArea =>
           if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && inEditMarker) {
             mutableRef.current.updateTipVisibility({
               marker: inEditMarker,
-              visibile: true,
+              visible: true,
               type: 'keyboard',
             });
             const markerUuid = inEditMarker.uuid;
@@ -40,7 +40,7 @@ const withFocusTipOnDown = TextArea =>
             e.stopPropagation();
           } else {
             mutableRef.current.updateTipVisibility({
-              visibile: false,
+              visible: false,
               type: 'keyboard',
             });
           }
@@ -54,7 +54,7 @@ const withFocusTipOnDown = TextArea =>
         const prevInEditMarker = mutableRef.current.inEditMarker;
         if (prevInEditMarker && prevInEditMarker.uuid !== inEditMarker?.uuid) {
           mutableRef.current.updateTipVisibility({
-            visibile: false,
+            visible: false,
             type: 'keyboard',
           });
         }

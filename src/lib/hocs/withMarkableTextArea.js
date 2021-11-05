@@ -262,6 +262,7 @@ const TipAnchor = forwardRef(
 
 const FrontLabelLines = ({
   marker,
+  markers,
   labelLines,
   getClassName,
   tipClassName,
@@ -292,7 +293,7 @@ const FrontLabelLines = ({
     } else {
       updateTipVisibility({
         marker,
-        visibile: true,
+        visible: true,
         labelLineIndex,
         type,
       });
@@ -309,7 +310,7 @@ const FrontLabelLines = ({
     } else {
       updateTipVisibility({
         marker,
-        visibile: false,
+        visible: false,
         type,
       });
     }
@@ -410,6 +411,7 @@ const FrontLabelLines = ({
             menuListId={menuListId}
             menuButtonId={menuButtonId}
             marker={marker}
+            markers={markers}
             markersHandlers={markersHandlers}
             focusParent={focus}
             onHide={whereToFocus => {
@@ -460,6 +462,7 @@ const FrontMarkers = ({
       <FrontLabelLines
         key={marker.uuid}
         marker={marker}
+        markers={markers}
         labelLines={labelLines}
         getClassName={isFirstLastOrTipVisible =>
           getClassName({
@@ -468,7 +471,10 @@ const FrontMarkers = ({
             marker,
           })
         }
-        tipClassName={getTipClassName({marker})}
+        tipClassName={getTipClassName({
+          marker,
+          isInEdit: marker.uuid === inEditMarker?.uuid,
+        })}
         InnerComponent={InnerComponent}
         TipComponent={TipComponent}
         visibleTipData={
@@ -551,9 +557,31 @@ const defaultClassNameGetters = {
 const withMarkableTextArea = ({
   defaultBackgroundColor = 'white',
   tipsZIndex = 99999999,
-  classNameGetters = defaultClassNameGetters,
+  classNameGetters: baseClassNameGetters,
 } = {}) => {
-  classNameGetters = {...defaultClassNameGetters, ...classNameGetters};
+  const classNameGetters = {
+    front: baseClassNameGetters?.front
+      ? params =>
+          baseClassNameGetters.front(
+            params,
+            defaultClassNameGetters.front(params)
+          ) ?? defaultClassNameGetters.front(params)
+      : defaultClassNameGetters.front,
+    back: baseClassNameGetters?.back
+      ? params =>
+          baseClassNameGetters.back(
+            params,
+            defaultClassNameGetters.back(params)
+          ) ?? defaultClassNameGetters.back(params)
+      : defaultClassNameGetters.back,
+    tip: baseClassNameGetters?.tip
+      ? params =>
+          baseClassNameGetters.tip(
+            params,
+            defaultClassNameGetters.tip(params)
+          ) ?? defaultClassNameGetters.tip(params)
+      : defaultClassNameGetters.tip,
+  };
   return (TextArea = 'textarea') =>
     forwardRef(
       (

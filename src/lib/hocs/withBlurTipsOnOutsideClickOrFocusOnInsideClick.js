@@ -31,13 +31,13 @@ const withBlurTipsOnOutsideClickOrFocusOnInsideClick = TextArea =>
         }
         if (!onTextArea && !onTip && !onMarker) {
           mutable.updateTipVisibility({
-            visibile: false,
+            visible: false,
           });
           e.preventDefault();
         } else {
           const anchorMarkerUuid = onMarker && elem.dataset.tipAnchorForMarker;
           mutable.updateTipVisibility({
-            visibile: false,
+            visible: false,
             type: 'clickOnTip',
             hideAction: ({markerUuid, visiblityStack}) => {
               if (markerUuid !== anchorMarkerUuid) {
@@ -49,14 +49,14 @@ const withBlurTipsOnOutsideClickOrFocusOnInsideClick = TextArea =>
           if (onMarker) {
             mutable.updateTipVisibility({
               marker: anchorMarkerUuid,
-              visibile: TOGGLE_VISIBLITY,
+              visible: TOGGLE_VISIBLITY,
               type: 'clickOnTip',
               hideAction: () => TOTAL_HIDE,
             });
           } else if (onTip) {
             mutable.updateTipVisibility({
               marker: elem.dataset.tipForMarker,
-              visibile: true,
+              visible: true,
               type: 'clickOnTip',
             });
           }

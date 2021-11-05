@@ -40,6 +40,7 @@ const wrapHideAction =
     const hideOrNewVisiblityStack = baseHideAction({
       markerUuid,
       visiblityStack,
+      requestedHideType,
     });
     if (Array.isArray(hideOrNewVisiblityStack)) {
       return hideOrNewVisiblityStack;
@@ -96,10 +97,10 @@ const withTips = ({TipComponent, hideOnEscape = true} = {}) => {
           });
         }, []);
         const updateTipVisibility = useCallback(
-          ({marker, type, visibile, labelLineIndex, hideAction}) => {
+          ({marker, type, visible, labelLineIndex, hideAction}) => {
             hideAction = wrapHideAction(hideAction);
             const markerUuid = marker?.uuid || marker;
-            if (!visibile && !markerUuid) {
+            if (!visible && !markerUuid) {
               setVisibleTipsSettings(visibleTipsSettings => {
                 const {data: tipsData, dataStack: tipsDataStack} =
                   visibleTipsSettings;
@@ -141,12 +142,12 @@ const withTips = ({TipComponent, hideOnEscape = true} = {}) => {
               const {data: tipsData, dataStack: tipsDataStack} =
                 visibleTipsSettings;
 
-              visibile =
-                visibile === TOGGLE_VISIBLITY
+              visible =
+                visible === TOGGLE_VISIBLITY
                   ? !tipsDataStack[markerUuid]?.find(data => data.type === type)
-                  : Boolean(visibile);
+                  : Boolean(visible);
 
-              if (!visibile) {
+              if (!visible) {
                 const oldDataStack = tipsDataStack[markerUuid];
                 if (!oldDataStack) {
                   return visibleTipsSettings;
@@ -240,7 +241,7 @@ const withTips = ({TipComponent, hideOnEscape = true} = {}) => {
               ) {
                 updateTipVisibility({
                   marker: oldInEditMarker,
-                  visibile: false,
+                  visible: false,
                   type: 'inEdit',
                 });
               }
@@ -248,7 +249,7 @@ const withTips = ({TipComponent, hideOnEscape = true} = {}) => {
                 // whether a different marker or same marker but updated
                 updateTipVisibility({
                   marker: inEditMarker,
-                  visibile: true,
+                  visible: true,
                   type: 'inEdit',
                 });
               }

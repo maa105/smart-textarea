@@ -2,19 +2,26 @@ import React, {useEffect, useState, useRef, forwardRef} from 'react';
 import mergeRefs from '../helpers/mergeRefs';
 import useImperativeForwarder from '../hooks/useImperativeForwarder';
 import {blockMarkerUpdates} from '../helpers/blockMarkerUpdates';
-import {getMarkerSelections} from './withMarkerSelection';
+import {
+  getMarkerPartsSelections,
+  getMarkerSelections,
+} from './withMarkerSelection';
 
 const DEFAULT_END = true;
 const CURRENT_END = 1;
 const NEXT_START = 2;
 
+const newLines = {
+  '\r': DEFAULT_END,
+  '\n': DEFAULT_END,
+};
+
 const spaces = {
   ' ': DEFAULT_END,
   '\t': DEFAULT_END,
-  '\r': DEFAULT_END,
-  '\n': DEFAULT_END,
   '\v': DEFAULT_END,
   '\0': DEFAULT_END,
+  ...newLines,
 };
 
 const getUuid = () => `${Math.round(Math.random() * 999999)}-${Date.now()}`;
@@ -25,8 +32,12 @@ const createMarker = ({
   type,
   start,
   end,
-  markerData = {},
-  data,
+  partsConfig,
+  parts = [],
+  partsText = {},
+  partsIds = {},
+  partsData = {},
+  lastResolvedPartIndex = -1,
   isLocked = false,
 }) => ({
   uuid: uuid ?? getUuid(),
@@ -35,8 +46,12 @@ const createMarker = ({
   type,
   start,
   end,
-  markerData,
-  data,
+  partsConfig,
+  parts,
+  partsText,
+  partsIds,
+  partsData,
+  lastResolvedPartIndex,
   isLocked,
 });
 const parseMarkers = (value, options) => {
@@ -59,31 +74,49 @@ const parseMarkers = (value, options) => {
     const start = i;
     i = start + 1;
 
-    const markerData = {};
+    const partsText = {};
+    const parts = [];
+    const partsConfig = anchor.parts;
 
-    const parts = anchor.parts;
-    for (let j = 0; j < parts.length; j++) {
-      const {key, startChar, endChars} = parts[j];
+    for (let j = 0; j < partsConfig.length; j++) {
+      const partStart = i;
+      let partStartChar = '';
+      const {key, startChar, endChars} = partsConfig[j];
       if (startChar) {
         if (value[i] === startChar) {
+          partStartChar = startChar;
           i++;
         } else {
           break;
         }
       }
-      const partStart = i;
+      const partTextStart = i;
       while (i < value.length) {
         if (endChars[value[i]]) {
           break;
         }
         i++;
       }
-      markerData[key] = value.substring(partStart, i);
-      if (i >= value.length || endChars[value[i]] === DEFAULT_END) {
+      const partTextEnd = i;
+      partsText[key] = value.substring(partTextStart, partTextEnd);
+      const isPartEnd = endChars[value[i]] === CURRENT_END;
+      const partEndChar = isPartEnd ? value[i] : '';
+      if (isPartEnd) {
+        i++;
+      }
+      const partEnd = i;
+      parts.push({
+        key,
+        start: partStart,
+        end: partEnd,
+        startChar: partStartChar,
+        endChar: partEndChar,
+      });
+      if (i >= value.length && !isPartEnd) {
         break;
       }
-      if (endChars[value[i]] === CURRENT_END) {
-        i++;
+      if (endChars[value[i]] === DEFAULT_END) {
+        break;
       }
     }
 
@@ -93,31 +126,32 @@ const parseMarkers = (value, options) => {
       version: options.version,
       start,
       end: i,
-      markerData,
+      partsConfig,
+      parts,
+      partsText,
     });
   }
   return markers;
 };
 
-const wrapMarkerParser =
-  (parseMarkers, options) => (value, markerOffset, oldFirstMarker) => {
-    const markers = parseMarkers(value, options).map((marker, i) => {
-      const updatedMarker = createMarker({
+const wrapMarkerParser = (parseMarkers, options) => (value, markerOffset) =>
+  parseMarkers(value, options).map(marker =>
+    createMarker({
+      isLocked: false,
+      partsIds: {},
+      partsData: {},
+      lastResolvedPartIndex: -1,
+      ...marker,
+      parts: marker.parts.map(part => ({
         isLocked: false,
-        ...(i === 0 && marker.start === 0 ? oldFirstMarker : {}),
-        ...marker,
-        uuid:
-          i === 0 && marker.start === 0 && oldFirstMarker
-            ? oldFirstMarker.uuid
-            : null,
-        start: marker.start + markerOffset,
-        end: marker.end + markerOffset,
-        value,
-      });
-      return updatedMarker;
-    });
-    return [value, markers];
-  };
+        ...part,
+        start: part.start + markerOffset,
+        end: part.end + markerOffset,
+      })),
+      start: marker.start + markerOffset,
+      end: marker.end + markerOffset,
+    })
+  );
 
 const update = ({
   markers,
@@ -133,66 +167,83 @@ const update = ({
   nextMarkerIndex,
   markerParser,
 }) => {
-  let newValue =
-    prevValue.substring(0, selectionStart) +
-    insertedText +
-    prevValue.substring(selectionEnd);
-
-  let lengthChange = newValue.length - prevValue.length;
   let inEditMarkerIndex = -1;
 
-  let newMarkers = [];
+  const newMarkers = [];
 
   if (midSelectedMarkerIndex >= 0) {
-    inEditMarkerIndex = midSelectedMarkerIndex;
     const midSelectedMarker = markers[midSelectedMarkerIndex];
     if (!midSelectedMarker.isLocked) {
+      inEditMarkerIndex = midSelectedMarkerIndex;
+
+      const newSelections = updateMarkerParts({
+        marker: midSelectedMarker,
+        selectionStart,
+        selectionEnd,
+      });
+      selectionStart = newSelections.selectionStart;
+      selectionEnd = newSelections.selectionEnd;
+
       newMarkers.push(...markers.slice(0, midSelectedMarkerIndex));
       newMarkers.push({
         ...midSelectedMarker,
-        end: selectionEnd,
+        end:
+          midSelectedMarker.end +
+          insertedText.length -
+          (selectionEnd - selectionStart),
       });
     } else {
       selectionStart = selectionEnd = midSelectedMarker.end;
+
       newMarkers.push(...markers.slice(0, midSelectedMarkerIndex + 1));
-      lengthChange = insertedText.length;
-      newValue =
-        prevValue.substring(0, selectionStart) +
-        insertedText +
-        prevValue.substring(selectionEnd);
     }
-    newMarkers.push(
-      ...markers.slice(midSelectedMarkerIndex + 1).map(marker => ({
-        ...marker,
-        start: marker.start + lengthChange,
-        end: marker.end + lengthChange,
-      }))
-    );
   } else {
     if (markerWithEndTouchedIndex >= 0) {
-      inEditMarkerIndex = markerWithEndTouchedIndex;
-      newMarkers.push(...markers.slice(0, markerWithEndTouchedIndex + 1));
-    } else if (endSelectedMarkerIndex >= 0) {
-      inEditMarkerIndex = endSelectedMarkerIndex;
-      const endSelectedMarker = markers[endSelectedMarkerIndex];
-      if (!endSelectedMarker.isLocked) {
-        newMarkers.push(...markers.slice(0, endSelectedMarkerIndex));
+      const markerWithEndTouched = markers[markerWithEndTouchedIndex];
+
+      newMarkers.push(...markers.slice(0, markerWithEndTouchedIndex));
+
+      if (!markerWithEndTouched.isLocked) {
+        inEditMarkerIndex = markerWithEndTouchedIndex;
+
         newMarkers.push({
-          ...endSelectedMarker,
-          end: selectionStart,
+          ...markerWithEndTouched,
+          end: markerWithEndTouched.end + insertedText.length,
         });
       } else {
-        selectionStart = selectionEnd = endSelectedMarker.end;
-        newMarkers.push(...markers.slice(0, endSelectedMarkerIndex + 1));
-        lengthChange = insertedText.length;
-        newValue =
-          prevValue.substring(0, selectionStart) +
-          insertedText +
-          prevValue.substring(selectionEnd);
+        newMarkers.push(markerWithEndTouched);
+      }
+    } else if (endSelectedMarkerIndex >= 0) {
+      const endSelectedMarker = markers[endSelectedMarkerIndex];
+
+      newMarkers.push(...markers.slice(0, endSelectedMarkerIndex));
+
+      if (!endSelectedMarker.isLocked) {
+        inEditMarkerIndex = endSelectedMarkerIndex;
+
+        const newSelections = updateMarkerParts({
+          marker: endSelectedMarker,
+          selectionStart,
+          selectionEnd,
+        });
+        selectionStart = newSelections.selectionStart;
+        selectionEnd = newSelections.selectionEnd;
+
+        newMarkers.push({
+          ...endSelectedMarker,
+          end: selectionStart + insertedText.length,
+        });
+      } else {
+        selectionStart = endSelectedMarker.end;
+        newMarkers.push(endSelectedMarker);
       }
     } else if (prevMarkerIndex >= 0) {
       newMarkers.push(...markers.slice(0, prevMarkerIndex + 1));
     }
+
+    const lengthChange = insertedText.length - (selectionEnd - selectionStart);
+
+    // here is where the selected markers whether fully selected or start selected are effectively deleted
 
     if (nextMarkerIndex >= 0) {
       const nextMarkers = markers.slice(nextMarkerIndex).map(marker => ({
@@ -209,82 +260,100 @@ const update = ({
     }
   }
 
-  const inEditMarker = newMarkers[inEditMarkerIndex];
-  if (inEditMarker && !inEditMarker.isLocked) {
-    const startParse = inEditMarker.start;
-    const endParse =
-      nextMarkerIndex >= 0
-        ? newMarkers[nextMarkerIndex].start
-        : newValue.length;
-    const toParse = newValue.substring(startParse, endParse);
+  const newValue =
+    prevValue.substring(0, selectionStart) +
+    insertedText +
+    prevValue.substring(selectionEnd);
 
-    const [parsedValue, parsedMarkers] = markerParser(
-      toParse,
-      startParse,
-      inEditMarker // will just update him and should be returned as first element
+  const inEditMarker = newMarkers[inEditMarkerIndex];
+  if (inEditMarker) {
+    const startParse = inEditMarker.start;
+    let endParse = inEditMarker.end;
+
+    const lastPossibleEndParse =
+      newMarkers[nextMarkerIndex]?.start ?? newValue.length;
+    for (
+      ;
+      endParse < lastPossibleEndParse && !spaces[newValue[endParse]];
+      endParse++
     );
 
-    if (parsedValue !== toParse) {
-      const lengthChange = parsedValue - toParse;
-      if (lengthChange && nextMarkerIndex >= 0) {
-        for (let i = nextMarkerIndex; i < newMarkers.length; i++) {
-          const marker = newMarkers[i];
-          newMarkers[i] = {
-            ...marker,
-            start: marker.start + lengthChange,
-            end: marker.end + lengthChange,
-          };
-        }
-      }
-      newValue =
-        newValue.substring(0, startParse) +
-        parsedValue +
-        newValue.substring(endParse);
-    }
-
-    newMarkers = [
-      ...newMarkers.slice(0, inEditMarkerIndex),
-      ...parsedMarkers,
-      ...newMarkers.slice(inEditMarkerIndex + 1),
-    ];
-  } else {
-    const startParse =
-      prevMarkerIndex >= 0 ? newMarkers[prevMarkerIndex].end : 0;
-    const endParse =
-      nextMarkerIndex >= 0
-        ? newMarkers[nextMarkerIndex].start
-        : newValue.length;
     const toParse = newValue.substring(startParse, endParse);
 
-    const [parsedValue, parsedMarkers] = markerParser(toParse, startParse);
+    const [newlyParsedInEditMarker, ...newParsedMarkers] = markerParser(
+      toParse,
+      startParse
+    );
 
-    if (parsedValue !== toParse) {
-      const lengthChange = parsedValue - toParse;
-      if (lengthChange && nextMarkerIndex >= 0) {
-        for (let i = nextMarkerIndex; i < newMarkers.length; i++) {
-          const marker = newMarkers[i];
-          newMarkers[i] = {
-            ...marker,
-            start: marker.start + lengthChange,
-            end: marker.end + lengthChange,
-          };
-        }
+    let lastResolvedPartIndex = -1;
+    const partsIds = {};
+    const partsData = {};
+    const parts = [];
+    const oldInEditMarkerParts = inEditMarker.parts;
+    const oldInEditMarkerpartsIds = inEditMarker.partsIds;
+    const oldInEditMarkerPartsData = inEditMarker.partsData;
+    const newInEditMarkerParts = newlyParsedInEditMarker.parts;
+    for (let i = 0; i < newInEditMarkerParts.length; i++) {
+      const oldPart = oldInEditMarkerParts[i];
+      const newPart = newInEditMarkerParts[i];
+      const key = newPart.key;
+
+      const shouldLockPart = Boolean(
+        oldPart?.isLocked &&
+          newPart.end !== newPart.start &&
+          prevValue.substring(oldPart.start, oldPart.end) ===
+            newValue.substring(newPart.start, newPart.end)
+      );
+      parts.push({
+        ...newPart,
+        isLocked: shouldLockPart,
+      });
+
+      if (shouldLockPart) {
+        lastResolvedPartIndex = i;
+        partsIds[key] = oldInEditMarkerpartsIds[key];
+        partsData[key] = oldInEditMarkerPartsData[key];
       }
-      newValue =
-        newValue.substring(0, startParse) +
-        parsedValue +
-        newValue.substring(endParse);
     }
 
-    const nextNewMarkers = [];
-    if (prevMarkerIndex >= 0) {
-      nextNewMarkers.push(...newMarkers.slice(0, prevMarkerIndex + 1));
-    }
-    nextNewMarkers.push(...parsedMarkers);
-    if (nextMarkerIndex >= 0) {
-      nextNewMarkers.push(...newMarkers.slice(nextMarkerIndex));
-    }
-    newMarkers = nextNewMarkers;
+    const newInEditMarker = {
+      ...newlyParsedInEditMarker,
+      lastResolvedPartIndex,
+      uuid: inEditMarker.uuid,
+      partsIds,
+      partsData,
+      parts,
+    };
+
+    newMarkers.splice(
+      // remove the old inEditMarker and insert in place of it the new one and the newParsedMarkers
+      inEditMarkerIndex,
+      1,
+      newInEditMarker,
+      ...newParsedMarkers
+    );
+  } else {
+    const startParse = selectionStart;
+    let endParse = selectionStart + insertedText.length;
+
+    const lastPossibleEndParse =
+      newMarkers[nextMarkerIndex]?.start ?? newValue.length;
+    for (
+      ;
+      endParse < lastPossibleEndParse && !spaces[newValue[endParse]];
+      endParse++
+    );
+
+    const toParse = newValue.substring(startParse, endParse);
+
+    const parsedMarkers = markerParser(toParse, startParse);
+
+    newMarkers.splice(
+      // remove the old inEditMarker and insert in place of it the new one and the newParsedMarkers
+      prevMarkerIndex + 1, // still correct even when prevMarkerIndex = -1
+      0,
+      ...parsedMarkers
+    );
   }
 
   return {
@@ -295,34 +364,156 @@ const update = ({
   };
 };
 
-const withMarkerParser = ({
-  markerParser = parseMarkers,
-  markerParserOptions,
-} = {}) => {
-  if (markerParser === parseMarkers) {
-    const anchors = {};
-    markerParserOptions.anchors.forEach(anchor => {
-      const parts = anchor.parts.map(({startChar, endChar, key}, i, parts) => ({
-        key,
-        startChar,
-        endChars: {
-          ...(endChar ? {[endChar]: CURRENT_END} : spaces),
-          ...(parts[i + 1]?.startChar
-            ? {
-                [parts[i + 1].startChar]: NEXT_START,
-              }
-            : null),
-        },
-      }));
-      anchors[anchor.anchorChar] = {
-        ...anchor,
-        parts,
-      };
-    });
-    markerParserOptions = {...markerParserOptions, anchors};
+const updateMarkerParts = ({marker, selectionStart, selectionEnd}) => {
+  const lastResolvedPartIndex = marker.lastResolvedPartIndex;
+  const parts = marker.parts;
+  if (!parts?.length) {
+    return {
+      selectionStart,
+      selectionEnd,
+    };
   }
 
-  markerParser = wrapMarkerParser(markerParser, markerParserOptions);
+  const {
+    midSelectedPartIndex,
+    endSelectedPartIndex,
+    startSelectedPartIndex,
+    selectedPartRange,
+  } = getMarkerPartsSelections({
+    marker,
+    selectionStart,
+    selectionEnd,
+  });
+
+  if (midSelectedPartIndex >= 0) {
+    const midSelectedPart = parts[midSelectedPartIndex];
+
+    if (midSelectedPart.isLocked) {
+      const lastResolvedPart = parts[lastResolvedPartIndex];
+      selectionStart = selectionEnd = lastResolvedPart.end;
+    }
+    return {
+      selectionStart,
+      selectionEnd,
+    };
+  }
+  if (endSelectedPartIndex >= 0) {
+    const endSelectedPart = parts[endSelectedPartIndex];
+
+    if (endSelectedPart.isLocked) {
+      const lastResolvedPart = parts[lastResolvedPartIndex];
+      selectionStart = lastResolvedPart.end;
+      selectionEnd = Math.max(selectionEnd, lastResolvedPart.end);
+    }
+    return {
+      selectionStart,
+      selectionEnd,
+    };
+  }
+  if (startSelectedPartIndex >= 0) {
+    const startSelectedPart = parts[startSelectedPartIndex];
+
+    if (startSelectedPart.isLocked) {
+      const lastResolvedPart = parts[lastResolvedPartIndex];
+      selectionStart = lastResolvedPart.end;
+      selectionEnd = Math.max(selectionEnd, lastResolvedPart.end);
+    }
+    return {
+      selectionStart,
+      selectionEnd,
+    };
+  }
+  if (
+    selectedPartRange.endIndex >= 0 &&
+    selectedPartRange.endIndex < lastResolvedPartIndex + 1
+  ) {
+    const lastResolvedPart = parts[lastResolvedPartIndex];
+    selectionStart = lastResolvedPart.end;
+    selectionEnd = Math.max(selectionEnd, lastResolvedPart.end);
+    return {
+      selectionStart,
+      selectionEnd,
+    };
+  }
+
+  return {
+    selectionStart,
+    selectionEnd,
+  };
+};
+
+const preProcessMarkerParserOptions = markerParserOptions => {
+  const anchors = {};
+  const types = {};
+  markerParserOptions.anchors.forEach(anchor => {
+    const parts = anchor.parts.map(({startChar, endChar, key}, i, parts) => ({
+      key,
+      startChar: startChar || '',
+      endChar: endChar || '',
+      endChars: {
+        ...(parts[i + 1]?.startChar
+          ? {
+              [parts[i + 1].startChar]: NEXT_START,
+            }
+          : null),
+        ...(endChar ? {[endChar]: CURRENT_END} : null),
+        ...newLines,
+      },
+    }));
+    const anchorConfig = {
+      ...anchor,
+      parts,
+    };
+    types[anchor.type] = anchorConfig;
+    anchors[anchor.anchorChar] = anchorConfig;
+  });
+  return {...markerParserOptions, anchors, types};
+};
+
+const getPartDelimitedText = (isLocked, part, partConfig, text) =>
+  (isLocked ? partConfig.startChar : part.startChar) +
+  text +
+  (isLocked ? partConfig.endChar : part.endChar);
+const getPartTextLengthChange = (isLocked, part, partConfig, text) =>
+  (isLocked ? partConfig.startChar : part.startChar).length +
+  text.length +
+  (isLocked ? partConfig.endChar : part.endChar).length -
+  (part.end - part.start);
+
+const initMarker = (marker, markerParserOptions) => {
+  const anchorConfig =
+    markerParserOptions.types[marker.type] ||
+    markerParserOptions.anchors[marker.anchor];
+  const partsConfig = anchorConfig.parts;
+  let lastResolvedPartIndex;
+  for (let i = 0; i < partsConfig.length; i++) {
+    if (marker.partsIds[partsConfig[i].key]) {
+      lastResolvedPartIndex = i;
+    }
+  }
+  const isMarkerLocked = lastResolvedPartIndex === partsConfig.length - 1;
+  const parts = isMarkerLocked
+    ? undefined
+    : (marker.parts || []).map((part, i) => ({
+        ...part,
+        isLocked: i <= lastResolvedPartIndex,
+      }));
+  const partsText = isMarkerLocked ? undefined : marker.partsText;
+  return createMarker({
+    ...marker,
+    type: anchorConfig.type,
+    anchor: anchorConfig.anchor,
+    parts,
+    partsText,
+    partsConfig,
+    isLocked: isMarkerLocked,
+    lastResolvedPartIndex,
+  });
+};
+
+const withMarkerParser = ({markerParserOptions} = {}) => {
+  markerParserOptions = preProcessMarkerParserOptions(markerParserOptions);
+  const markerParser = wrapMarkerParser(parseMarkers, markerParserOptions);
 
   return (TextArea = 'textarea') =>
     forwardRef(
@@ -343,12 +534,13 @@ const withMarkerParser = ({
         mutableRef.current = mutableRef.current || {
           value: initValue ?? '',
           markers:
-            initMarkers?.map(marker =>
-              createMarker({
-                isLocked: true,
-                ...marker,
-              })
-            ) ?? [],
+            initMarkers
+              ?.filter(
+                ({anchor, type}) =>
+                  markerParserOptions.types[type] ||
+                  markerParserOptions.anchors[anchor]
+              )
+              .map(marker => initMarker(marker, markerParserOptions)) ?? [],
         };
 
         mutableRef.current.onMarkersChange = onMarkersChange;
@@ -380,101 +572,220 @@ const withMarkerParser = ({
         const [childImperativeRef] = useImperativeForwarder(
           imperativeRef,
           () => {
-            const updateMarker = (marker, update) => {
+            const deleteMarker = (marker, setCursor) => {
               const markers = mutableRef.current.markers;
               const value = mutableRef.current.value;
               const i = markers.findIndex(m => m.uuid === marker.uuid);
               if (i < 0) {
+                return;
+              }
+              marker = markers[i];
+
+              const {start: selectionStart, end: selectionEnd} = marker;
+              const lengthChange = selectionEnd - selectionStart;
+
+              const newValue =
+                value.substring(0, marker.start) + value.substring(marker.end);
+
+              const newMarkers = [
+                ...markers.slice(0, i),
+                ...markers.slice(i + 1).map(marker => ({
+                  ...marker,
+                  start: marker.start - lengthChange,
+                  end: marker.end - lengthChange,
+                })),
+              ];
+
+              setValue(newValue);
+              setMarkers(newMarkers);
+
+              if (setCursor) {
+                const textarea = innerRef.current;
+                innerRef.current.value = newValue;
+                textarea.selectionStart = textarea.selectionEnd = marker.start;
+              }
+
+              onMarkersChange &&
+                onMarkersChange({
+                  target: innerRef.current,
+                  init: false,
+                  value: newValue,
+                  oldValue: value,
+                  markers: newMarkers,
+                  oldMarkers: markers,
+                });
+
+              onChangeFromParent &&
+                onChangeFromParent({
+                  target: innerRef.current,
+                  value: newValue,
+                  markers: newMarkers,
+                });
+            };
+            const updateMarkerPart = ({marker, partKey}, update) => {
+              const markerUuid = marker.uuid || marker;
+              const markers = mutableRef.current.markers;
+              const value = mutableRef.current.value;
+              const i = markers.findIndex(m => m.uuid === markerUuid);
+              if (i < 0) {
                 return false;
               }
               marker = markers[i];
+              const partIndex = marker.partsConfig.findIndex(
+                ({key}) => key === partKey
+              );
+              if (partIndex < 0) {
+                return false;
+              }
+              const part = marker.parts[partIndex];
+              const partsConfig = marker.partsConfig;
+              const partConfig = partsConfig[partIndex];
+
               const updateFunction = update => {
-                if (!update && update !== null) {
+                if (!update) {
                   return marker;
                 }
 
-                let newValue;
-                let newMarkers;
-                let newMarker = null;
+                const {text, cursor, data, id} = update;
 
-                if (update) {
-                  const {
-                    textValue,
-                    cursor,
-                    appendText = '',
-                    ...markerUpdates
-                  } = update;
-                  const hasNewText = textValue != null;
-                  const lengthChange = hasNewText
-                    ? textValue.length +
+                const isLocked = Boolean(id);
+                const lastResolvedPartIndex = isLocked
+                  ? partIndex
+                  : marker.lastResolvedPartIndex;
+
+                let {partsIds, partsData, parts, partsText} = marker;
+
+                const isLastPart = partIndex === parts.length - 1;
+                const isLastPossiblePart = partIndex === partsConfig.length - 1;
+                const nextPartConfig = isLastPossiblePart
+                  ? null
+                  : partsConfig[partIndex + 1];
+
+                const isMarkerLocked =
+                  marker.isLocked ||
+                  (isLocked && partIndex === partsConfig.length - 1);
+
+                const appendText = isMarkerLocked
+                  ? update.appendText || ''
+                  : '';
+
+                const hasNewText = text != null;
+                const lengthChange = hasNewText
+                  ? isMarkerLocked
+                    ? text.length +
                       appendText.length -
                       (marker.end - marker.start)
-                    : 0;
+                    : getPartTextLengthChange(isLocked, part, partConfig, text)
+                  : 0;
 
-                  newMarkers = [...markers.slice(0, i)];
-                  newMarker = {
-                    ...marker,
-                    end: hasNewText
-                      ? marker.start + textValue.length
-                      : marker.end,
-                    ...markerUpdates,
+                if (id) {
+                  partsIds = {...partsIds, [partKey]: id};
+                }
+                if (data || data === null) {
+                  partsData = {...partsData, [partKey]: data};
+                }
+                if (isMarkerLocked) {
+                  parts = undefined;
+                } else if (isLocked !== part.isLocked || hasNewText) {
+                  const newParts = parts.slice(0, partIndex);
+                  const newPart = {
+                    ...parts[partIndex],
+                    isLocked,
+                    end: parts[partIndex].end + lengthChange,
+                    ...(isLocked
+                      ? {
+                          startChar: partConfig.startChar,
+                          endChar: partConfig.endChar,
+                        }
+                      : null),
                   };
-                  newMarkers.push(newMarker);
-                  if (lengthChange) {
-                    newMarkers.push(
-                      ...markers.slice(i + 1).map(marker => ({
-                        ...marker,
-                        start: marker.start + lengthChange,
-                        end: marker.end + lengthChange,
+                  newParts.push(newPart);
+                  if (isLastPart) {
+                    if (!isLastPossiblePart) {
+                      newParts.push({
+                        start: newPart.end,
+                        end: newPart.end,
+                        key: nextPartConfig.key,
+                        endChar: '',
+                        startChar: '',
+                      });
+                    }
+                  } else if (lengthChange) {
+                    newParts.push(
+                      ...parts.slice(partIndex + 1).map(part => ({
+                        ...part,
+                        start: part.start + lengthChange,
+                        end: part.end + lengthChange,
                       }))
                     );
                   } else {
-                    newMarkers.push(...markers.slice(i + 1));
+                    newParts.push(...parts.slice(partIndex + 1));
                   }
-
-                  newValue = value;
-                  if (hasNewText) {
-                    newValue = [
-                      value.substring(0, marker.start),
-                      textValue,
-                      appendText,
-                      value.substring(marker.end),
-                    ].join('');
-
-                    setValue(newValue);
+                  parts = newParts;
+                }
+                if (isMarkerLocked) {
+                  partsText = undefined;
+                } else if (hasNewText) {
+                  partsText = {...partsText, [partKey]: text};
+                  if (isLastPart && !isLastPossiblePart) {
+                    partsText[nextPartConfig.key] = '';
                   }
-                  setMarkers(newMarkers);
-                  if (cursor) {
-                    const textarea = innerRef.current;
-                    innerRef.current.value = newValue;
-                    const marker = newMarkers[i];
-                    if (cursor === 'start') {
-                      textarea.selectionStart = textarea.selectionEnd =
-                        marker.start;
-                    } else if (cursor === 'end') {
-                      textarea.selectionStart = textarea.selectionEnd =
-                        marker.end + appendText.length;
-                    }
-                  }
-                } else {
-                  const {start: selectionStart, end: selectionEnd} = marker;
-                  const lengthChange = selectionEnd - selectionStart;
+                }
 
-                  newValue =
-                    value.substring(0, marker.start) +
-                    value.substring(marker.end);
-
-                  newMarkers = [
-                    ...markers.slice(0, i),
+                const newMarkers = [...markers.slice(0, i)];
+                const newMarker = {
+                  ...marker,
+                  end: marker.end + lengthChange,
+                  parts,
+                  partsIds,
+                  partsData,
+                  partsText,
+                  lastResolvedPartIndex,
+                  isLocked: isMarkerLocked,
+                };
+                newMarkers.push(newMarker);
+                if (lengthChange) {
+                  newMarkers.push(
                     ...markers.slice(i + 1).map(marker => ({
                       ...marker,
-                      start: marker.start - lengthChange,
-                      end: marker.end - lengthChange,
-                    })),
-                  ];
+                      start: marker.start + lengthChange,
+                      end: marker.end + lengthChange,
+                    }))
+                  );
+                } else {
+                  newMarkers.push(...markers.slice(i + 1));
+                }
+
+                let newValue = value;
+                if (hasNewText) {
+                  newValue = [
+                    value.substring(
+                      0,
+                      isMarkerLocked ? marker.start : part.start
+                    ),
+                    isMarkerLocked
+                      ? text + appendText
+                      : getPartDelimitedText(isLocked, part, partConfig, text),
+                    value.substring(isMarkerLocked ? marker.end : part.end),
+                  ].join('');
 
                   setValue(newValue);
-                  setMarkers(newMarkers);
+                }
+                setMarkers(newMarkers);
+                if (cursor) {
+                  const textarea = innerRef.current;
+                  innerRef.current.value = newValue;
+                  const marker = newMarkers[i];
+                  const part = marker.parts?.[partIndex];
+                  if (cursor === 'start') {
+                    textarea.selectionStart = textarea.selectionEnd =
+                      isMarkerLocked ? marker.start : part.start;
+                  } else if (cursor === 'end') {
+                    textarea.selectionStart = textarea.selectionEnd =
+                      isMarkerLocked
+                        ? marker.end + appendText.length
+                        : part.end;
+                  }
                 }
 
                 onMarkersChange &&
@@ -497,53 +808,46 @@ const withMarkerParser = ({
                 return newMarker;
               };
               if (typeof update === 'function') {
-                return updateFunction(update(marker));
+                return updateFunction(
+                  update({marker, partConfig, part, partIndex})
+                );
               }
               return updateFunction(update);
             };
             return {
-              updateMarker: (marker, update) =>
-                updateMarker(marker, marker => {
-                  if (typeof update === 'function') {
-                    update = update(marker);
-                  }
-                  if (mutableRef.current.disabled) {
-                    if (update === null) {
-                      return false; // if disabled you cannot delete a marker
+              deleteMarker,
+              updateMarkerPart: ({marker, partKey}, update) =>
+                updateMarkerPart(
+                  {marker, partKey},
+                  ({marker, part, partConfig, partIndex}) => {
+                    if (typeof update === 'function') {
+                      update = update({
+                        marker,
+                        partKey,
+                        part,
+                        partConfig,
+                        partIndex,
+                      });
+                    }
+                    if (mutableRef.current.disabled && update) {
+                      // if disabled you can only update the data
+                      return {
+                        data: update.data,
+                      };
                     }
                     if (update) {
-                      if (marker.data === undefined) {
-                        // if disabled you can only update the data and only if it didnt exist
-                        return {
-                          data: update.data,
-                        };
-                      }
-                      return false;
+                      return {
+                        data:
+                          update.data === undefined
+                            ? marker.partsData[partKey]
+                            : update.data,
+                        id: update.id ?? marker.partsIds[partKey],
+                        ...update,
+                      };
                     }
+                    return update;
                   }
-                  if (update) {
-                    let isLocked;
-                    if (marker.isLocked) {
-                      isLocked = true;
-                      if (update.isLocked === false) {
-                        console.warn(
-                          'cannot unloack a locked marker. Will keep it locked!'
-                        );
-                      }
-                    } else {
-                      isLocked = update.isLocked ?? false;
-                    }
-                    return {
-                      isLocked,
-                      textValue: update.textValue,
-                      data:
-                        update.data === undefined ? marker.data : update.data,
-                      markerData: update.markerData ?? marker.markerData,
-                      cursor: update.cursor,
-                    };
-                  }
-                  return update;
-                }),
+                ),
             };
           },
           []
@@ -557,10 +861,10 @@ const withMarkerParser = ({
             return true;
           }
 
-          const newSelectionEnd = textarea.selectionEnd;
+          const selectionEnd = textarea.selectionEnd;
           const prevSelectionEnd =
-            prevValue.length - (newValue.length - newSelectionEnd);
-          const minSelectionEnd = Math.min(prevSelectionEnd, newSelectionEnd);
+            prevValue.length - (newValue.length - selectionEnd);
+          const minSelectionEnd = Math.min(prevSelectionEnd, selectionEnd);
 
           let selectionStart;
           for (
@@ -576,7 +880,11 @@ const withMarkerParser = ({
             selectionEnd: prevSelectionEnd,
           });
 
-          const blockResult = blockMarkerUpdates(selection);
+          const blockResult = blockMarkerUpdates({
+            ...selection,
+            selectionStart,
+            selectionEnd: prevSelectionEnd,
+          });
 
           if (mutableRef.current.blockTimer) {
             clearTimeout(mutableRef.current.blockTimer);
@@ -597,10 +905,7 @@ const withMarkerParser = ({
             return false;
           }
 
-          const insertedText = newValue.substring(
-            selectionStart,
-            newSelectionEnd
-          );
+          const insertedText = newValue.substring(selectionStart, selectionEnd);
 
           const {
             prevMarkerIndex,
@@ -610,7 +915,11 @@ const withMarkerParser = ({
             nextMarkerIndex,
           } = selection;
 
-          const {newValue: parsedValue, newMarkers: parsedMarkers} = update({
+          const {
+            newValue: parsedValue,
+            newMarkers: parsedMarkers,
+            selectionEnd: newSelectionEnd,
+          } = update({
             markers,
             prevValue,
             selectionStart,
@@ -626,15 +935,13 @@ const withMarkerParser = ({
             markerParser,
           });
 
-          if (parsedValue !== newValue) {
-            console.error(
-              `OOPS! input tracking is broken. Expected "${newValue}" got "${parsedValue}"`
-            );
-          }
           setValue(parsedValue);
           setMarkers(parsedMarkers);
 
-          const newCursorPosition = newSelectionEnd; // might need to be refined!!!
+          const newCursorPosition =
+            parsedValue !== newValue ? newSelectionEnd : selectionEnd; // might need to be refined!!!
+          textarea.value = parsedValue;
+          textarea.selectionEnd = newCursorPosition;
           textarea.selectionStart = newCursorPosition; // forcing it for now if it isnt "should" always be though
 
           selection = {

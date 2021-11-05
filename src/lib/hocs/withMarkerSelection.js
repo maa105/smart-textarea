@@ -15,127 +15,385 @@ const withInEditMarkerIndex = selection => {
   return selection;
 };
 
-export const getMarkerSelections = ({
-  markers,
-  selectionStart: start,
-  selectionEnd: end,
+export const getSelections = ({
+  partsOrMarkers,
+  selectionStart,
+  selectionEnd,
 }) => {
-  const selectedMarkersRange = {startIndex: -1, endIndex: -1};
-  let startSelectedMarkerIndex = -1;
-  let endSelectedMarkerIndex = -1;
-  let midSelectedMarkerIndex = -1;
-  let markerWithStartTouchedIndex = -1;
-  let markerWithEndTouchedIndex = -1;
-  let prevMarkerIndex;
-  let nextMarkerIndex;
+  const selectedRange = {startIndex: -1, endIndex: -1};
+  let startSelectedIndex = -1;
+  let endSelectedIndex = -1;
+  let midSelectedIndex = -1;
+  let startTouchedIndex = -1;
+  let endTouchedIndex = -1;
+  let prevIndex;
+  let nextIndex;
   let i = 0;
 
-  const getReturn = () =>
-    withInEditMarkerIndex({
-      markers,
-      selectedMarkersRange,
-      startSelectedMarkerIndex,
-      endSelectedMarkerIndex,
-      midSelectedMarkerIndex,
-      markerWithStartTouchedIndex,
-      markerWithEndTouchedIndex,
-      prevMarkerIndex,
-      nextMarkerIndex:
-        (nextMarkerIndex ?? -1) >= markers.length ? -1 : nextMarkerIndex ?? -1,
-    });
+  const getReturn = () => ({
+    selectedRange,
+    startSelectedIndex,
+    endSelectedIndex,
+    midSelectedIndex,
+    startTouchedIndex,
+    endTouchedIndex,
+    prevIndex,
+    nextIndex:
+      (nextIndex ?? -1) >= partsOrMarkers.length ? -1 : nextIndex ?? -1,
+  });
 
-  for (; i < markers.length && markers[i].end < start; i++);
+  for (
+    ;
+    i < partsOrMarkers.length && partsOrMarkers[i].end < selectionStart;
+    i++
+  );
 
-  prevMarkerIndex = i - 1;
+  prevIndex = i - 1;
 
-  let marker = markers[i];
-  if (!marker) {
+  let part = partsOrMarkers[i];
+  if (!part) {
     return getReturn();
   }
 
-  if (marker.end === start) {
-    markerWithEndTouchedIndex = prevMarkerIndex = i;
+  if (part.end === selectionStart) {
+    endTouchedIndex = prevIndex = i;
     i++;
-    marker = markers[i];
-    if (!marker) {
+    part = partsOrMarkers[i];
+    if (!part) {
       return getReturn();
     }
   }
 
-  if (marker.start >= end) {
-    nextMarkerIndex = i;
-    if (marker.start === end) {
-      markerWithStartTouchedIndex = i;
+  if (part.start >= selectionEnd) {
+    nextIndex = i;
+    if (part.start === selectionEnd) {
+      startTouchedIndex = i;
     }
     return getReturn();
   }
 
-  let startTotallySelected = start <= marker.start && marker.start < end;
-  let endTotallySelected = start < marker.end && marker.end <= end;
+  let startTotallySelected =
+    selectionStart <= part.start && part.start < selectionEnd;
+  let endTotallySelected =
+    selectionStart < part.end && part.end <= selectionEnd;
   let totalySelected = startTotallySelected && endTotallySelected;
   const midSelected = !startTotallySelected && !endTotallySelected;
 
   if (midSelected) {
-    midSelectedMarkerIndex = i;
-    nextMarkerIndex = i + 1;
+    midSelectedIndex = i;
+    nextIndex = i + 1;
     return getReturn();
   }
   if (!totalySelected) {
     if (startTotallySelected) {
-      startSelectedMarkerIndex = i;
-      nextMarkerIndex = i + 1;
+      startSelectedIndex = i;
+      nextIndex = i + 1;
       return getReturn();
     }
 
-    endSelectedMarkerIndex = i;
+    endSelectedIndex = i;
     i++;
-    marker = markers[i];
-    if (!marker) {
+    part = partsOrMarkers[i];
+    if (!part) {
       return getReturn();
     }
 
-    startTotallySelected = start <= marker.start && marker.start < end;
-    endTotallySelected = start < marker.end && marker.end <= end;
+    startTotallySelected =
+      selectionStart <= part.start && part.start < selectionEnd;
+    endTotallySelected = selectionStart < part.end && part.end <= selectionEnd;
     totalySelected = startTotallySelected && endTotallySelected;
 
     if (!totalySelected) {
       if (startTotallySelected) {
-        nextMarkerIndex = i + 1;
-        startSelectedMarkerIndex = i;
+        nextIndex = i + 1;
+        startSelectedIndex = i;
       } else {
-        nextMarkerIndex = i;
-        if (marker.start === end) {
-          markerWithStartTouchedIndex = i;
+        nextIndex = i;
+        if (part.start === selectionEnd) {
+          startTouchedIndex = i;
         }
       }
       return getReturn();
     }
   }
-  selectedMarkersRange.startIndex = i;
+  selectedRange.startIndex = i;
 
   i++;
-  for (; i < markers.length; i++) {
-    marker = markers[i];
+  for (; i < partsOrMarkers.length; i++) {
+    part = partsOrMarkers[i];
 
-    startTotallySelected = start <= marker.start && marker.start < end;
-    endTotallySelected = start < marker.end && marker.end <= end;
+    startTotallySelected =
+      selectionStart <= part.start && part.start < selectionEnd;
+    endTotallySelected = selectionStart < part.end && part.end <= selectionEnd;
     totalySelected = startTotallySelected && endTotallySelected;
 
     if (!totalySelected) {
       if (startTotallySelected) {
-        nextMarkerIndex = i + 1;
-        startSelectedMarkerIndex = i;
+        nextIndex = i + 1;
+        startSelectedIndex = i;
       } else {
-        nextMarkerIndex = i;
-        if (marker.start === end) {
-          markerWithStartTouchedIndex = i;
+        nextIndex = i;
+        if (part.start === selectionEnd) {
+          startTouchedIndex = i;
         }
       }
       break;
     }
   }
-  selectedMarkersRange.endIndex = i;
+  selectedRange.endIndex = i;
   return getReturn();
+};
+
+export const getMarkerSelections = ({
+  markers,
+  selectionStart,
+  selectionEnd,
+}) => {
+  const {
+    selectedRange: selectedMarkersRange,
+    startSelectedIndex: startSelectedMarkerIndex,
+    endSelectedIndex: endSelectedMarkerIndex,
+    midSelectedIndex: midSelectedMarkerIndex,
+    startTouchedIndex: markerWithStartTouchedIndex,
+    endTouchedIndex: markerWithEndTouchedIndex,
+    prevIndex: prevMarkerIndex,
+    nextIndex: nextMarkerIndex,
+  } = getSelections({
+    partsOrMarkers: markers,
+    selectionStart,
+    selectionEnd,
+  });
+  return withInEditMarkerIndex({
+    markers,
+    selectedMarkersRange,
+    startSelectedMarkerIndex,
+    endSelectedMarkerIndex,
+    midSelectedMarkerIndex,
+    markerWithStartTouchedIndex,
+    markerWithEndTouchedIndex,
+    prevMarkerIndex,
+    nextMarkerIndex,
+  });
+};
+
+export const getMarkerPartsSelections = ({
+  marker,
+  selectionStart,
+  selectionEnd,
+}) => {
+  const parts = marker.parts;
+
+  const {
+    selectedRange: selectedPartRange,
+    startSelectedIndex: startSelectedPartIndex,
+    endSelectedIndex: endSelectedPartIndex,
+    midSelectedIndex: midSelectedPartIndex,
+    startTouchedIndex: partWithStartTouchedIndex,
+    endTouchedIndex: partWithEndTouchedIndex,
+    prevIndex: prevPartIndex,
+    nextIndex: nextPartIndex,
+  } = getSelections({
+    partsOrMarkers: parts,
+    selectionStart,
+    selectionEnd,
+  });
+
+  const anchorIndex = parts[0].start - 1;
+  const anchorSelected =
+    selectionStart <= anchorIndex && selectionEnd > anchorIndex;
+
+  return {
+    markerUuid: marker.uuid,
+    parts: marker.parts,
+    selectedPartRange,
+    startSelectedPartIndex,
+    endSelectedPartIndex,
+    midSelectedPartIndex,
+    partWithStartTouchedIndex,
+    partWithEndTouchedIndex,
+    prevPartIndex,
+    nextPartIndex,
+    anchorSelected,
+  };
+};
+
+const fixPartSelections = ({
+  marker,
+  selectionStart,
+  selectionEnd,
+  isSingleSelection,
+  startCursorMoved,
+  endCursorMoved,
+}) => {
+  const {
+    midSelectedPartIndex,
+    endSelectedPartIndex,
+    startSelectedPartIndex,
+    selectedPartRange,
+  } = getMarkerPartsSelections({
+    marker,
+    selectionStart,
+    selectionEnd,
+  });
+  const parts = marker.parts;
+  const lastResolvedPartIndex = marker.lastResolvedPartIndex;
+  if (midSelectedPartIndex >= 0) {
+    const midSelectedPart = parts[midSelectedPartIndex];
+
+    if (midSelectedPart.isLocked) {
+      if (isSingleSelection) {
+        if (startCursorMoved < 0) {
+          return {
+            selectionStart: midSelectedPart.start,
+            selectionEnd: midSelectedPart.start,
+          };
+        }
+        return {
+          selectionStart: midSelectedPart.end,
+          selectionEnd: midSelectedPart.end,
+        };
+      }
+      const lastResolvedPart = parts[lastResolvedPartIndex];
+      return {
+        selectionStart: midSelectedPart.start,
+        selectionEnd: lastResolvedPart.end,
+      };
+    }
+  }
+  if (endSelectedPartIndex >= 0) {
+    const endSelectedPart = parts[endSelectedPartIndex];
+
+    if (endSelectedPart.isLocked) {
+      const lastResolvedPart = parts[lastResolvedPartIndex];
+      return {
+        selectionStart:
+          startCursorMoved > 0 ? endSelectedPart.end : endSelectedPart.start,
+        selectionEnd: Math.max(selectionEnd, lastResolvedPart.end),
+      };
+    }
+  }
+
+  if (startSelectedPartIndex >= 0) {
+    const startSelectedPart = parts[startSelectedPartIndex];
+
+    if (startSelectedPart.isLocked) {
+      const lastResolvedPart = parts[lastResolvedPartIndex];
+      return {
+        selectionStart: Math.min(selectionStart, parts[0].start),
+        selectionEnd:
+          endCursorMoved < 0 ? parts[0].start : lastResolvedPart.end,
+      };
+    }
+  }
+
+  if (
+    selectedPartRange.endIndex >= 0 &&
+    selectedPartRange.endIndex < lastResolvedPartIndex + 1
+  ) {
+    const lastResolvedPart = parts[lastResolvedPartIndex];
+    return {
+      selectionStart,
+      selectionEnd: Math.max(selectionEnd, lastResolvedPart.end),
+    };
+  }
+
+  return {
+    selectionStart,
+    selectionEnd,
+  };
+};
+
+const fixMarkerSelections = ({
+  markers,
+  selectionStart,
+  selectionEnd,
+  isSingleSelection,
+  startCursorMoved,
+  endCursorMoved,
+}) => {
+  const {
+    midSelectedMarkerIndex,
+    endSelectedMarkerIndex,
+    startSelectedMarkerIndex,
+  } = getMarkerSelections({
+    markers,
+    selectionStart,
+    selectionEnd,
+  });
+
+  if (midSelectedMarkerIndex >= 0) {
+    const midSelectedMarker = markers[midSelectedMarkerIndex];
+    if (midSelectedMarker.isLocked) {
+      if (isSingleSelection) {
+        const selection =
+          startCursorMoved < 0
+            ? midSelectedMarker.start
+            : midSelectedMarker.end;
+        return {
+          selectionStart: selection,
+          selectionEnd: selection,
+        };
+      }
+      return {
+        selectionStart: midSelectedMarker.start,
+        selectionEnd: midSelectedMarker.end,
+      };
+    }
+    return fixPartSelections({
+      marker: midSelectedMarker,
+      selectionStart,
+      selectionEnd,
+      isSingleSelection,
+      startCursorMoved,
+      endCursorMoved,
+    });
+  }
+  if (endSelectedMarkerIndex >= 0) {
+    const endSelectedMarker = markers[endSelectedMarkerIndex];
+    if (endSelectedMarker.isLocked) {
+      if (startCursorMoved < 0) {
+        selectionStart = endSelectedMarker.start;
+      } else {
+        selectionStart = endSelectedMarker.end;
+      }
+    } else {
+      const newSelections = fixPartSelections({
+        marker: endSelectedMarker,
+        selectionStart,
+        selectionEnd,
+        isSingleSelection,
+        startCursorMoved,
+        endCursorMoved,
+      });
+      selectionStart = newSelections.selectionStart;
+      selectionEnd = newSelections.selectionEnd;
+    }
+  }
+  if (startSelectedMarkerIndex >= 0) {
+    const startSelectedMarker = markers[startSelectedMarkerIndex];
+    if (startSelectedMarker.isLocked) {
+      if (endCursorMoved > 0) {
+        selectionEnd = startSelectedMarker.end;
+      } else {
+        selectionEnd = startSelectedMarker.start;
+      }
+    } else {
+      const newSelections = fixPartSelections({
+        marker: startSelectedMarker,
+        selectionStart,
+        selectionEnd,
+        isSingleSelection,
+        startCursorMoved,
+        endCursorMoved,
+      });
+      selectionStart = newSelections.selectionStart;
+      selectionEnd = newSelections.selectionEnd;
+    }
+  }
+  return {
+    selectionStart,
+    selectionEnd,
+  };
 };
 
 const withMarkerSelection = (TextArea = 'textarea') =>
@@ -163,9 +421,6 @@ const withMarkerSelection = (TextArea = 'textarea') =>
 
         const isSingleSelection = selectionStart === selectionEnd;
 
-        let start = selectionStart;
-        let end = selectionEnd;
-
         const prevSelection = mutableRef.current.selection;
         const startCursorMoved =
           !prevSelection || prevSelection?.selectionStart === selectionStart
@@ -176,102 +431,36 @@ const withMarkerSelection = (TextArea = 'textarea') =>
             ? 0
             : selectionEnd - prevSelection.selectionEnd;
 
-        let {
-          midSelectedMarkerIndex,
-          markerWithEndTouchedIndex,
-          endSelectedMarkerIndex,
-          // eslint-disable-next-line prefer-const
-          selectedMarkersRange,
-          startSelectedMarkerIndex,
-          markerWithStartTouchedIndex,
-          // eslint-disable-next-line prefer-const
-          prevMarkerIndex,
-          // eslint-disable-next-line prefer-const
-          nextMarkerIndex,
-        } = getMarkerSelections({
+        const {
+          selectionStart: newSelectionStart,
+          selectionEnd: newSelectionEnd,
+        } = fixMarkerSelections({
           markers,
           selectionStart,
           selectionEnd,
+          isSingleSelection,
+          startCursorMoved,
+          endCursorMoved,
         });
 
-        if (midSelectedMarkerIndex >= 0) {
-          const midSelectedMarker = markers[midSelectedMarkerIndex];
-          if (midSelectedMarker.isLocked) {
-            if (isSingleSelection) {
-              if (startCursorMoved < 0) {
-                start = end = midSelectedMarker.start;
-                markerWithStartTouchedIndex = midSelectedMarkerIndex;
-              } else {
-                start = end = midSelectedMarker.end;
-                markerWithEndTouchedIndex = midSelectedMarkerIndex;
-              }
-              midSelectedMarkerIndex = -1;
-            } else {
-              start = midSelectedMarker.start;
-              end = midSelectedMarker.end;
-              selectedMarkersRange.startIndex = midSelectedMarkerIndex;
-              selectedMarkersRange.endIndex = midSelectedMarkerIndex;
-              midSelectedMarkerIndex = -1;
-            }
-          }
-        } else {
-          if (endSelectedMarkerIndex >= 0) {
-            const endSelectedMarker = markers[endSelectedMarkerIndex];
-            if (endSelectedMarker.isLocked) {
-              if (startCursorMoved < 0) {
-                start = endSelectedMarker.start;
-                selectedMarkersRange.startIndex = endSelectedMarkerIndex;
-                if (selectedMarkersRange.endIndex === -1) {
-                  selectedMarkersRange.endIndex = endSelectedMarkerIndex;
-                }
-                endSelectedMarkerIndex = -1;
-              } else {
-                start = endSelectedMarker.end;
-                markerWithEndTouchedIndex = endSelectedMarkerIndex;
-                endSelectedMarkerIndex = -1;
-              }
-            }
-          }
-          if (startSelectedMarkerIndex >= 0) {
-            const startSelectedMarker = markers[startSelectedMarkerIndex];
-            if (startSelectedMarker.isLocked) {
-              if (endCursorMoved > 0) {
-                end = startSelectedMarker.end;
-                selectedMarkersRange.endIndex = startSelectedMarkerIndex;
-                if (selectedMarkersRange.startIndex === -1) {
-                  selectedMarkersRange.startIndex = startSelectedMarkerIndex;
-                }
-                startSelectedMarkerIndex = -1;
-              } else {
-                end = startSelectedMarker.start;
-                markerWithStartTouchedIndex = startSelectedMarkerIndex;
-                startSelectedMarkerIndex = -1;
-              }
-            }
-          }
+        if (selectionEnd !== newSelectionEnd) {
+          textarea.selectionEnd = newSelectionEnd;
         }
-
-        if (selectionEnd !== end) {
-          textarea.selectionEnd = end;
-        }
-        if (selectionStart !== start) {
-          textarea.selectionStart = start;
+        if (selectionStart !== newSelectionStart) {
+          textarea.selectionStart = newSelectionStart;
         }
 
         const newSelection = withInEditMarkerIndex({
           markers,
 
-          selectionStart: start,
-          selectionEnd: end,
+          selectionStart: newSelectionStart,
+          selectionEnd: newSelectionEnd,
 
-          prevMarkerIndex,
-          midSelectedMarkerIndex,
-          markerWithEndTouchedIndex,
-          endSelectedMarkerIndex,
-          selectedMarkersRange,
-          startSelectedMarkerIndex,
-          markerWithStartTouchedIndex,
-          nextMarkerIndex,
+          ...getMarkerSelections({
+            markers,
+            selectionStart: newSelectionStart,
+            selectionEnd: newSelectionEnd,
+          }),
         });
 
         mutableRef.current.selection = newSelection;

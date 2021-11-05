@@ -29,3 +29,7 @@
 .textarea-back-thing-label {
   background-color: rgb(255, 208, 122);
 }
+
+.textarea-back-combined-label {
+  outline: 1px solid gray;
+}
