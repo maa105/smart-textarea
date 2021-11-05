@@ -248,6 +248,11 @@ const update = ({
     if (nextMarkerIndex >= 0) {
       const nextMarkers = markers.slice(nextMarkerIndex).map(marker => ({
         ...marker,
+        parts: marker.parts?.map(part => ({
+          ...part,
+          start: part.start + lengthChange,
+          end: part.end + lengthChange,
+        })),
         start: marker.start + lengthChange,
         end: marker.end + lengthChange,
       }));
@@ -743,6 +748,11 @@ const withMarkerParser = ({markerParserOptions} = {}) => {
                   newMarkers.push(
                     ...markers.slice(i + 1).map(marker => ({
                       ...marker,
+                      parts: marker.parts?.map(part => ({
+                        ...part,
+                        start: part.start + lengthChange,
+                        end: part.end + lengthChange,
+                      })),
                       start: marker.start + lengthChange,
                       end: marker.end + lengthChange,
                     }))
