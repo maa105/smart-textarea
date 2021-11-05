@@ -305,7 +305,6 @@
  * @typedef {Object} UpdateMarkerPartFunctionCallbackData
  * @property {Marker} marker the marker we want to update
  * @property {string} partKey the marker part key we want to update
- * @property {Part} part the marker's part we want to update. (NOTE: will be null if marker is locked)
  * @property {PartConfig} partConfig the part config of the part we want to update
  * @property {number} partIndex the index of the part we want to update
  */

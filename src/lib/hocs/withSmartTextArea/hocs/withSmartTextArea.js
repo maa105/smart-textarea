@@ -17,7 +17,7 @@ import withId from './withId';
 import withStyle from './withStyle';
 import buildTipComponent from '../builders/component/buildTipComponent';
 
-/** @type {WithSmartTextAreaHOC} */
+/** @type {import('./types.jsdocs').WithSmartTextAreaHOC} */
 const withSmartTextArea = ({
   anchors: baseAnchors,
   version = 0,
@@ -74,10 +74,10 @@ const withSmartTextArea = ({
             detailsConfig = detailsConfig || detailsOptions;
             let searchLoader;
             if (searchConfig.data) {
-              searchLoader = (searchConfig.filterData || searchArray).bind(
-                null,
-                searchConfig.data
-              );
+              searchLoader = (
+                searchConfig.filterData ||
+                ((data, searchData) => searchArray(data, searchData.searchText))
+              ).bind(null, searchConfig.data);
             } else {
               searchLoader =
                 searchConfig.loader ||

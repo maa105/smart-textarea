@@ -33,8 +33,8 @@ const createMarker = ({
   start,
   end,
   partsConfig,
-  parts = [],
-  partsText = {},
+  parts,
+  partsText,
   partsIds = {},
   partsData = {},
   lastResolvedPartIndex = -1,
@@ -367,12 +367,6 @@ const update = ({
 const updateMarkerParts = ({marker, selectionStart, selectionEnd}) => {
   const lastResolvedPartIndex = marker.lastResolvedPartIndex;
   const parts = marker.parts;
-  if (!parts?.length) {
-    return {
-      selectionStart,
-      selectionEnd,
-    };
-  }
 
   const {
     midSelectedPartIndex,
@@ -637,7 +631,6 @@ const withMarkerParser = ({markerParserOptions} = {}) => {
               if (partIndex < 0) {
                 return false;
               }
-              const part = marker.parts[partIndex];
               const partsConfig = marker.partsConfig;
               const partConfig = partsConfig[partIndex];
 
@@ -648,22 +641,24 @@ const withMarkerParser = ({markerParserOptions} = {}) => {
 
                 const {text, cursor, data, id} = update;
 
-                const isLocked = Boolean(id);
-                const lastResolvedPartIndex = isLocked
-                  ? partIndex
-                  : marker.lastResolvedPartIndex;
-
                 let {partsIds, partsData, parts, partsText} = marker;
 
-                const isLastPart = partIndex === parts.length - 1;
+                const part = parts?.[partIndex];
+
+                const isLocked = Boolean(id, partsIds[partKey]);
+                const lastResolvedPartIndex = isLocked
+                  ? Math.max(partIndex, marker.lastResolvedPartIndex)
+                  : marker.lastResolvedPartIndex;
+
                 const isLastPossiblePart = partIndex === partsConfig.length - 1;
+
+                const isMarkerLocked =
+                  marker.isLocked || (isLocked && isLastPossiblePart);
+
+                const isLastPart = parts && partIndex === parts.length - 1;
                 const nextPartConfig = isLastPossiblePart
                   ? null
                   : partsConfig[partIndex + 1];
-
-                const isMarkerLocked =
-                  marker.isLocked ||
-                  (isLocked && partIndex === partsConfig.length - 1);
 
                 const appendText = isMarkerLocked
                   ? update.appendText || ''
@@ -808,9 +803,7 @@ const withMarkerParser = ({markerParserOptions} = {}) => {
                 return newMarker;
               };
               if (typeof update === 'function') {
-                return updateFunction(
-                  update({marker, partConfig, part, partIndex})
-                );
+                return updateFunction(update({marker, partConfig, partIndex}));
               }
               return updateFunction(update);
             };
@@ -819,12 +812,11 @@ const withMarkerParser = ({markerParserOptions} = {}) => {
               updateMarkerPart: ({marker, partKey}, update) =>
                 updateMarkerPart(
                   {marker, partKey},
-                  ({marker, part, partConfig, partIndex}) => {
+                  ({marker, partConfig, partIndex}) => {
                     if (typeof update === 'function') {
                       update = update({
                         marker,
                         partKey,
-                        part,
                         partConfig,
                         partIndex,
                       });

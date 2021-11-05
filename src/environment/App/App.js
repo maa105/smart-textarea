@@ -85,19 +85,18 @@ const App = () => {
           setInEditMarker(e.markers[e.inEditMarkerIndex]);
         }}
       />
-      <p>
-        <h5>Markers:</h5>
-        <pre>
-          {markers.map(marker => (
-            <div
-              className={
-                marker.uuid === inEditMarker?.uuid ? classes.inEditMarker : ''
-              }>
-              {JSON.stringify(marker, null, 3)}
-            </div>
-          ))}
-        </pre>
-      </p>
+      <h5>Markers:</h5>
+      <pre>
+        {markers.map(({partsConfig, ...marker}) => (
+          <div
+            key={marker.uuid}
+            className={
+              marker.uuid === inEditMarker?.uuid ? classes.inEditMarker : ''
+            }>
+            {JSON.stringify(marker, null, 3)}
+          </div>
+        ))}
+      </pre>
     </div>
   );
 };

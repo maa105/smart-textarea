@@ -1,5 +1,5 @@
 const doesItemMatchSearch = (item, searchText) => {
-  const searchTextLowerCased = searchText.toLowerCase();
+  const searchTextLowerCased = (searchText ?? '').toLowerCase();
   if (typeof item === 'string') {
     return item.toLowerCase().includes(searchTextLowerCased);
   }

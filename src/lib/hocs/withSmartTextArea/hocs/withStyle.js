@@ -3,8 +3,9 @@ import React, {forwardRef} from 'react';
 const withStyle =
   ({defaultLineHeight = '135%', defaultWidth}) =>
   (TextArea = 'textarea') =>
-    forwardRef(({width, lineHeight, ...restProps}) => (
+    forwardRef(({width, lineHeight, ...restProps}, ref) => (
       <TextArea
+        ref={ref}
         {...restProps}
         style={{
           ...restProps.style,
