@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useEffect} from 'react';
 import {withSmartTextArea} from '../../lib';
 import './SmartTextArea.css';
 
@@ -169,27 +169,19 @@ const thingDetails = (id, signal) =>
     });
   });
 
-const NotFoundPersonComponent = ({marker, markersHandlers}) => {
-  const [countDown, setCountDown] = useState(4);
-  const mutableRef = useRef({});
-  mutableRef.current.markersHandlers = markersHandlers;
-  mutableRef.current.marker = marker;
-  useEffect(() => {
-    const t = setInterval(() => {
-      setCountDown(countDown => countDown - 1);
-    }, 1000);
-    return () => clearInterval(t);
-  }, []);
-  const done = countDown === 0;
-  useEffect(() => {
-    if (done) {
-      mutableRef.current.markersHandlers.deleteMarker(
-        mutableRef.current.marker
-      );
-    }
-  }, [done]);
-  return <b>Person not found! will delete in {countDown}</b>;
-};
+const NotFoundPersonComponent = ({marker, markersHandlers}) => (
+  <b>
+    Person not found!
+    <br />
+    <br />
+    <button type="button" onClick={() => markersHandlers.deleteMarker(marker)}>
+      Delete
+    </button>{' '}
+    <button type="button" onClick={() => markersHandlers.unmarkMarker(marker)}>
+      Unmark
+    </button>
+  </b>
+);
 
 const capitalize = str =>
   str.substr(0, 1).toUpperCase() + str.substr(1).toLowerCase();
@@ -214,7 +206,7 @@ const SmartTextArea = withSmartTextArea({
           endChar: ':',
           searchOptions: {
             ResultItemComponent: ({item}) => <div>{capitalize(item)}</div>,
-            loader: () => ['person', 'thing'],
+            data: ['person', 'thing'],
             onItemSelect: ({selectedItem}) => ({
               text: capitalize(selectedItem),
               id: selectedItem,
@@ -229,11 +221,6 @@ const SmartTextArea = withSmartTextArea({
                   return undefined;
               }
             },
-            getCacheKey: () => '',
-          },
-          detailsOptions: {
-            Component: ({data}) => <h4>{capitalize(data)}</h4>,
-            loader: ({id}) => id,
           },
         },
         {

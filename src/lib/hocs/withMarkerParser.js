@@ -56,12 +56,16 @@ const createMarker = ({
 });
 const parseMarkers = (value, options) => {
   let i = 0;
+  const considerFirst = options.considerFirst ?? true;
   const anchors = options.anchors;
   const markers = [];
   while (i < value.length) {
     let anchor;
     while (i < value.length) {
-      if ((i === 0 || spaces[value[i - 1]]) && anchors[value[i]]) {
+      if (
+        ((i === 0 && considerFirst) || spaces[value[i - 1]]) &&
+        anchors[value[i]]
+      ) {
         anchor = anchors[value[i]];
         break;
       }
@@ -134,24 +138,25 @@ const parseMarkers = (value, options) => {
   return markers;
 };
 
-const wrapMarkerParser = (parseMarkers, options) => (value, markerOffset) =>
-  parseMarkers(value, options).map(marker =>
-    createMarker({
-      isLocked: false,
-      partsIds: {},
-      partsData: {},
-      lastResolvedPartIndex: -1,
-      ...marker,
-      parts: marker.parts.map(part => ({
+const wrapMarkerParser =
+  (parseMarkers, options) => (value, markerOffset, considerFirst) =>
+    parseMarkers(value, {...options, considerFirst}).map(marker =>
+      createMarker({
         isLocked: false,
-        ...part,
-        start: part.start + markerOffset,
-        end: part.end + markerOffset,
-      })),
-      start: marker.start + markerOffset,
-      end: marker.end + markerOffset,
-    })
-  );
+        partsIds: {},
+        partsData: {},
+        lastResolvedPartIndex: -1,
+        ...marker,
+        parts: marker.parts.map(part => ({
+          isLocked: false,
+          ...part,
+          start: part.start + markerOffset,
+          end: part.end + markerOffset,
+        })),
+        start: marker.start + markerOffset,
+        end: marker.end + markerOffset,
+      })
+    );
 
 const update = ({
   markers,
@@ -341,6 +346,11 @@ const update = ({
     const startParse = selectionStart;
     let endParse = selectionStart + insertedText.length;
 
+    const prevEnd = newMarkers[prevMarkerIndex]?.end ?? 0;
+    const considerFirst = Boolean(
+      prevEnd === startParse || spaces[newValue[startParse - 1]]
+    );
+
     const lastPossibleEndParse =
       newMarkers[nextMarkerIndex]?.start ?? newValue.length;
     for (
@@ -351,10 +361,9 @@ const update = ({
 
     const toParse = newValue.substring(startParse, endParse);
 
-    const parsedMarkers = markerParser(toParse, startParse);
+    const parsedMarkers = markerParser(toParse, startParse, considerFirst);
 
     newMarkers.splice(
-      // remove the old inEditMarker and insert in place of it the new one and the newParsedMarkers
       prevMarkerIndex + 1, // still correct even when prevMarkerIndex = -1
       0,
       ...parsedMarkers
@@ -592,6 +601,11 @@ const withMarkerParser = ({markerParserOptions} = {}) => {
                   ...marker,
                   start: marker.start - lengthChange,
                   end: marker.end - lengthChange,
+                  parts: marker.parts?.map(part => ({
+                    ...part,
+                    start: part.start - lengthChange,
+                    end: part.end - lengthChange,
+                  })),
                 })),
               ];
 
@@ -618,6 +632,45 @@ const withMarkerParser = ({markerParserOptions} = {}) => {
                 onChangeFromParent({
                   target: innerRef.current,
                   value: newValue,
+                  markers: newMarkers,
+                });
+            };
+            const unmarkMarker = (marker, setCursor) => {
+              const markers = mutableRef.current.markers;
+              const value = mutableRef.current.value;
+
+              const i = markers.findIndex(m => m.uuid === marker.uuid);
+              if (i < 0) {
+                return;
+              }
+              marker = markers[i];
+
+              const newMarkers = [
+                ...markers.slice(0, i),
+                ...markers.slice(i + 1),
+              ];
+
+              setMarkers(newMarkers);
+
+              if (setCursor) {
+                const textarea = innerRef.current;
+                textarea.selectionStart = textarea.selectionEnd = marker.end;
+              }
+
+              onMarkersChange &&
+                onMarkersChange({
+                  target: innerRef.current,
+                  init: false,
+                  value,
+                  oldValue: value,
+                  markers: newMarkers,
+                  oldMarkers: markers,
+                });
+
+              onChangeFromParent &&
+                onChangeFromParent({
+                  target: innerRef.current,
+                  value,
                   markers: newMarkers,
                 });
             };
@@ -819,6 +872,7 @@ const withMarkerParser = ({markerParserOptions} = {}) => {
             };
             return {
               deleteMarker,
+              unmarkMarker,
               updateMarkerPart: ({marker, partKey}, update) =>
                 updateMarkerPart(
                   {marker, partKey},
