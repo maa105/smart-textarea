@@ -85,7 +85,7 @@ const buildSearchDataLoaderHook = ({
             return;
           }
           if (mutableRef.current.cacheKey === debouncedCacheKey) {
-            setResultsData({error});
+            setResultsData({error, resultsCacheKey: debouncedCacheKey});
           }
         });
       return () => abortCtrl.abort();
