@@ -34,7 +34,7 @@ const withSmartTextArea = ({
   TextArea,
   tipsZIndex,
   isAbortError = error =>
-    error.aborted || error.message.toLowerCase().includes('abort'),
+    error?.aborted || error?.message?.toLowerCase().includes('abort'),
 }) => {
   getCache = getCache ? fortifyGetCache(getCache) : defaultGetCache;
 
