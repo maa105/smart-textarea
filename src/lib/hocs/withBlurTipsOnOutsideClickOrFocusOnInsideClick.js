@@ -33,7 +33,6 @@ const withBlurTipsOnOutsideClickOrFocusOnInsideClick = TextArea =>
           mutable.updateTipVisibility({
             visible: false,
           });
-          e.preventDefault();
         } else {
           const anchorMarkerUuid = onMarker && elem.dataset.tipAnchorForMarker;
           mutable.updateTipVisibility({
